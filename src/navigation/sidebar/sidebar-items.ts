@@ -9,6 +9,7 @@ import {
   Gauge,
   GraduationCap,
   HeartPulse,
+  Import,
   Kanban,
   LayoutDashboard,
   ListTodo,
@@ -141,6 +142,12 @@ export const sidebarItems: NavGroup[] = [
     id: 2,
     label: "Pages",
     items: [
+      {
+        id: "import-data",
+        title: "Importar Dados",
+        url: "/importar-dados",
+        icon: Import,
+      },
       {
         id: "email",
         title: "Email",
