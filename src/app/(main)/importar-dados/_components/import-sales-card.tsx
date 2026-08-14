@@ -11,13 +11,13 @@ import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 
-import type { ListingsImportResult } from "../_lib/listings-import-types";
+import type { SalesImportResult } from "../_lib/sales-import-types";
 
-export function ImportListingsCard() {
+export function ImportSalesCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<ListingsImportResult | null>(null);
+  const [result, setResult] = useState<SalesImportResult | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
 
   async function handleImport() {
@@ -25,19 +25,17 @@ export function ImportListingsCard() {
     setIsProcessing(true);
     setResult(null);
     setRequestError(null);
-
     const body = new FormData();
     body.set("file", file);
 
     try {
-      const response = await fetch("/api/importacoes/listings", { method: "POST", body });
-      const payload = (await response.json()) as ListingsImportResult | { message?: string };
-
+      const response = await fetch("/api/importacoes/sales", { method: "POST", body });
+      const payload = (await response.json()) as SalesImportResult | { message?: string };
       if (!response.ok) {
         setRequestError(payload.message ?? "Não foi possível importar o arquivo.");
         return;
       }
-      setResult(payload as ListingsImportResult);
+      setResult(payload as SalesImportResult);
     } catch {
       setRequestError("Não foi possível enviar o arquivo. Tente novamente.");
     } finally {
@@ -51,18 +49,18 @@ export function ImportListingsCard() {
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-0.5 size-5 text-muted-foreground" aria-hidden="true" />
           <div className="flex flex-col gap-1">
-            <CardTitle>Anúncios</CardTitle>
-            <CardDescription>Relatório de anúncios do Mercado Livre</CardDescription>
+            <CardTitle>Vendas</CardTitle>
+            <CardDescription>Relatório de vendas do Mercado Livre</CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         <FieldGroup>
           <Field>
-            <FieldLabel htmlFor="listings-file">Arquivo XLSX</FieldLabel>
+            <FieldLabel htmlFor="sales-file">Arquivo XLSX</FieldLabel>
             <Input
               ref={inputRef}
-              id="listings-file"
+              id="sales-file"
               type="file"
               accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="sr-only"
@@ -89,11 +87,10 @@ export function ImportListingsCard() {
         {isProcessing && (
           <Alert>
             <Spinner />
-            <AlertTitle>Processando arquivo...</AlertTitle>
+            <AlertTitle>Processando vendas...</AlertTitle>
             <AlertDescription>Isso pode levar alguns instantes.</AlertDescription>
           </Alert>
         )}
-
         {requestError && (
           <Alert variant="destructive">
             <AlertCircle />
@@ -101,17 +98,20 @@ export function ImportListingsCard() {
             <AlertDescription>{requestError}</AlertDescription>
           </Alert>
         )}
-
         {result && (
           <Alert>
             <CheckCircle2 />
             <AlertTitle>Importação concluída</AlertTitle>
             <AlertDescription>
               <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
-                <div>Produtos identificados: {result.productsIdentified}</div>
-                <div>Anúncios processados: {result.listingsProcessed}</div>
-                <div>Anúncios criados: {result.listingsCreated}</div>
-                <div>Anúncios atualizados: {result.listingsUpdated}</div>
+                <div>Vendas processadas: {result.salesProcessed}</div>
+                <div>Itens de venda: {result.saleItems}</div>
+                <div>Resumos de pacotes: {result.packageSummaries}</div>
+                <div>Resumos de troca: {result.exchangeSummaries}</div>
+                <div>Linhas inseridas: {result.insertedRows}</div>
+                <div>Linhas já existentes: {result.existingRows}</div>
+                <div>SKUs não identificados: {result.unidentifiedSkus}</div>
+                <div>MLBs não identificados: {result.unidentifiedMlbs}</div>
                 <div>Erros: {result.errors}</div>
               </dl>
               {result.problems.length > 0 && (

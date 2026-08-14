@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 import { ImportListingsCard } from "./_components/import-listings-card";
+import { ImportSalesCard } from "./_components/import-sales-card";
 
 export default async function Page() {
   const supabase = await createClient();
@@ -20,7 +21,10 @@ export default async function Page() {
           Envie relatórios do Mercado Livre para atualizar os dados do sistema.
         </p>
       </div>
-      <ImportListingsCard />
+      <div className="grid max-w-6xl gap-4 lg:grid-cols-2">
+        <ImportListingsCard />
+        <ImportSalesCard />
+      </div>
     </main>
   );
 }
