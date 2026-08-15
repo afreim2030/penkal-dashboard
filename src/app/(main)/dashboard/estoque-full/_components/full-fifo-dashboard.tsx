@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 
 import type { FullFifoBucketKey } from "../_lib/full-fifo";
 import type { FullFifoAnalysisData, FullFifoVelocitySkuAnalysis } from "../_lib/load-full-fifo-analysis";
+import { StockPriorityAudit } from "./stock-priority-audit";
 
 const integer = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -253,6 +254,8 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
           })}
         </CardContent>
       </Card>
+
+      <StockPriorityAudit rows={data.rows} totalQuantity={data.summary.quantityFull} />
 
       <Card>
         <CardHeader>
