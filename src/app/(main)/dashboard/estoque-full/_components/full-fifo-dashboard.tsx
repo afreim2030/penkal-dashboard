@@ -17,8 +17,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { FullFifoBucketKey } from "../_lib/full-fifo";
-import type { FullFifoSkuAnalysis } from "../_lib/full-fifo-analysis";
-import type { FullFifoAnalysisData } from "../_lib/load-full-fifo-analysis";
+import type { FullFifoAnalysisData, FullFifoVelocitySkuAnalysis } from "../_lib/load-full-fifo-analysis";
 
 const integer = new Intl.NumberFormat("pt-BR");
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -42,7 +41,19 @@ const BUCKETS: { key: FullFifoBucketKey; label: string }[] = [
   { key: "units_unknown", label: "Desconhecido" },
 ];
 
-type SortKey = "quantity" | "average_age" | "units_90_plus" | "units_180_plus" | "unknown" | "stock_time";
+type SortKey =
+  | "quantity"
+  | "average_age"
+  | "units_90_plus"
+  | "units_180_plus"
+  | "unknown"
+  | "stock_time"
+  | "sold"
+  | "average_daily"
+  | "days_low"
+  | "days_high";
+type DemandFilter = "all" | "with_sale" | "without_sale" | "out_of_stock_demand";
+type DaysFilter = "all" | "0_7" | "8_15" | "16_30" | "31_60" | "61_90" | "91_plus";
 
 function metric(value: string, label: string, description?: string) {
   return (
@@ -56,13 +67,45 @@ function metric(value: string, label: string, description?: string) {
   );
 }
 
-function sortableValue(row: FullFifoSkuAnalysis, sort: SortKey): number {
+function sortableValue(row: FullFifoVelocitySkuAnalysis, sort: SortKey): number {
   if (sort === "average_age") return row.weighted_average_age_days ?? -1;
   if (sort === "units_90_plus") return row.units_91_120 + row.units_121_180 + row.units_181_plus;
   if (sort === "units_180_plus") return row.units_181_plus;
   if (sort === "unknown") return row.units_unknown;
   if (sort === "stock_time") return row.units_affect_stock_time;
+  if (sort === "sold") return row.sold_units_available_period;
+  if (sort === "average_daily") return row.average_daily_sales_available_period;
+  if (sort === "days_low" || sort === "days_high")
+    return row.days_of_stock_available_period ?? Number.POSITIVE_INFINITY;
   return row.quantity_full;
+}
+
+function inDaysFilter(days: number | null, filter: DaysFilter): boolean {
+  if (filter === "all") return true;
+  if (days === null) return false;
+  if (filter === "0_7") return days <= 7;
+  if (filter === "8_15") return days > 7 && days <= 15;
+  if (filter === "16_30") return days > 15 && days <= 30;
+  if (filter === "31_60") return days > 30 && days <= 60;
+  if (filter === "61_90") return days > 60 && days <= 90;
+  return days > 90;
+}
+
+function matchesDemandFilter(row: FullFifoVelocitySkuAnalysis, filter: DemandFilter): boolean {
+  if (filter === "all") return true;
+  if (filter === "with_sale") return row.sold_units_available_period > 0;
+  if (filter === "without_sale") return row.quantity_full > 0 && row.sold_units_available_period === 0;
+  return row.quantity_full === 0 && row.sold_units_available_period > 0;
+}
+
+function formatStockDays(days: number | null, status: FullFifoVelocitySkuAnalysis["velocity_status"]): string {
+  if (status === "Sem venda no período") return "Sem venda no período";
+  return days === null ? "—" : `${decimal.format(days)} d`;
+}
+
+function formatSevenDayStockDays(row: FullFifoVelocitySkuAnalysis): string {
+  if (row.days_of_stock_7d !== null) return `${decimal.format(row.days_of_stock_7d)} d`;
+  return row.sold_units_7d === 0 ? "Sem venda no período" : "—";
 }
 
 export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
@@ -72,8 +115,11 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
   const [withStock, setWithStock] = useState(true);
   const [affectsStockTime, setAffectsStockTime] = useState(false);
   const [incompleteCoverage, setIncompleteCoverage] = useState(false);
+  const [with90Plus, setWith90Plus] = useState(false);
+  const [demandFilter, setDemandFilter] = useState<DemandFilter>("all");
+  const [daysFilter, setDaysFilter] = useState<DaysFilter>("all");
   const [sort, setSort] = useState<SortKey>("quantity");
-  const [selected, setSelected] = useState<FullFifoSkuAnalysis | null>(null);
+  const [selected, setSelected] = useState<FullFifoVelocitySkuAnalysis | null>(null);
   const rows = useMemo(() => {
     const normalizedSku = sku.trim().toLocaleLowerCase("pt-BR");
     const normalizedProduct = product.trim().toLocaleLowerCase("pt-BR");
@@ -83,13 +129,39 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
         (row) => !normalizedProduct || (row.product_name ?? "").toLocaleLowerCase("pt-BR").includes(normalizedProduct),
       )
       .filter((row) => bucket === "all" || row[bucket] > 0)
-      .filter((row) => !withStock || row.quantity_full > 0)
+      .filter((row) => !withStock || demandFilter === "out_of_stock_demand" || row.quantity_full > 0)
       .filter((row) => !affectsStockTime || row.units_affect_stock_time > 0)
       .filter((row) => !incompleteCoverage || (row.coverage_percentage ?? 100) < 100)
-      .sort(
-        (left, right) => sortableValue(right, sort) - sortableValue(left, sort) || left.sku.localeCompare(right.sku),
-      );
-  }, [affectsStockTime, bucket, data.rows, incompleteCoverage, product, sku, sort, withStock]);
+      .filter((row) => !with90Plus || row.units_91_120 + row.units_121_180 + row.units_181_plus > 0)
+      .filter((row) => matchesDemandFilter(row, demandFilter))
+      .filter((row) => inDaysFilter(row.days_of_stock_available_period, daysFilter))
+      .sort((left, right) => {
+        const direction = sort === "days_low" ? -1 : 1;
+        return (
+          direction * (sortableValue(right, sort) - sortableValue(left, sort)) || left.sku.localeCompare(right.sku)
+        );
+      });
+  }, [
+    affectsStockTime,
+    bucket,
+    data.rows,
+    daysFilter,
+    demandFilter,
+    incompleteCoverage,
+    product,
+    sku,
+    sort,
+    withStock,
+    with90Plus,
+  ]);
+
+  const stockWithSale = data.rows.filter((row) => row.quantity_full > 0 && row.sold_units_available_period > 0).length;
+  const stockWithoutSale = data.rows.filter(
+    (row) => row.quantity_full > 0 && row.sold_units_available_period === 0,
+  ).length;
+  const outOfStockWithDemand = data.rows.filter(
+    (row) => row.quantity_full === 0 && row.sold_units_available_period > 0,
+  ).length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -108,6 +180,29 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
           aparecem como idade desconhecida. O FIFO estimado não representa rastreabilidade física do Mercado Livre.
         </AlertDescription>
       </Alert>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Giro e cobertura de estoque</CardTitle>
+          <CardDescription>
+            Baseado em vendas de {date.format(new Date(`${data.salesCoverage.coverageStart}T12:00:00Z`))} a{" "}
+            {date.format(new Date(`${data.salesCoverage.coverageEndComplete}T12:00:00Z`))} ·{" "}
+            {data.salesCoverage.calendarDays} dias completos.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          {metric(integer.format(data.salesCoverage.validSoldUnits), "Unidades válidas vendidas")}
+          {metric(decimal.format(data.salesCoverage.averageDailySales), "Média diária geral")}
+          {metric(integer.format(stockWithSale), "SKUs com estoque e venda")}
+          {metric(integer.format(stockWithoutSale), "SKUs com estoque sem venda")}
+          {metric(integer.format(outOfStockWithDemand), "Sem estoque com demanda")}
+        </CardContent>
+        <CardContent className="pt-0 text-muted-foreground text-xs">
+          11/08/2026 foi excluído por ser dia parcial: {integer.format(data.salesCoverage.validSoldUnitsPartialDay)}{" "}
+          unidades válidas até 15:35. Períodos de 14 e 30 dias e tendência permanecem indisponíveis por falta de
+          cobertura.
+        </CardContent>
+      </Card>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {metric(integer.format(data.summary.quantityFull), "Estoque atual")}
@@ -210,6 +305,45 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
                     <SelectItem value="units_180_plus">Maior quantidade 180+</SelectItem>
                     <SelectItem value="unknown">Maior desconhecido</SelectItem>
                     <SelectItem value="stock_time">Maior impacto no Tempo de estoque</SelectItem>
+                    <SelectItem value="sold">Maior venda no período</SelectItem>
+                    <SelectItem value="average_daily">Maior média diária</SelectItem>
+                    <SelectItem value="days_low">Menor dias de estoque</SelectItem>
+                    <SelectItem value="days_high">Maior dias de estoque</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Demanda</FieldLabel>
+              <Select value={demandFilter} onValueChange={(value) => setDemandFilter(value as DemandFilter)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Todas</SelectItem>
+                    <SelectItem value="with_sale">Com venda</SelectItem>
+                    <SelectItem value="without_sale">Sem venda no período</SelectItem>
+                    <SelectItem value="out_of_stock_demand">Sem estoque com demanda</SelectItem>
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field>
+              <FieldLabel>Dias de estoque</FieldLabel>
+              <Select value={daysFilter} onValueChange={(value) => setDaysFilter(value as DaysFilter)}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">Todas as faixas</SelectItem>
+                    <SelectItem value="0_7">0–7</SelectItem>
+                    <SelectItem value="8_15">8–15</SelectItem>
+                    <SelectItem value="16_30">16–30</SelectItem>
+                    <SelectItem value="31_60">31–60</SelectItem>
+                    <SelectItem value="61_90">61–90</SelectItem>
+                    <SelectItem value="91_plus">91+</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -242,6 +376,14 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
                 />
                 <FieldLabel htmlFor="coverage">Cobertura menor que 100%</FieldLabel>
               </Field>
+              <Field orientation="horizontal">
+                <Checkbox
+                  id="with-90-plus"
+                  checked={with90Plus}
+                  onCheckedChange={(value) => setWith90Plus(value === true)}
+                />
+                <FieldLabel htmlFor="with-90-plus">Com unidades 90+</FieldLabel>
+              </Field>
             </FieldGroup>
           </FieldSet>
 
@@ -252,6 +394,18 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
                   <TableHead>SKU</TableHead>
                   <TableHead className="min-w-60">Produto</TableHead>
                   <TableHead>Estoque FULL</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Venda período</TableHead>
+                  <TableHead>Média/dia</TableHead>
+                  <TableHead>Dias estoque</TableHead>
+                  <TableHead>Venda 7d</TableHead>
+                  <TableHead>Média 7d</TableHead>
+                  <TableHead>Dias 7d</TableHead>
+                  <TableHead>Venda 14d</TableHead>
+                  <TableHead>Dias 14d</TableHead>
+                  <TableHead>Venda 30d</TableHead>
+                  <TableHead>Dias 30d</TableHead>
+                  <TableHead>Tendência</TableHead>
                   <TableHead>Idade média</TableHead>
                   <TableHead>Mais antigo</TableHead>
                   <TableHead>Cobertura</TableHead>
@@ -272,6 +426,42 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
                       {row.product_name ?? "Produto não vinculado"}
                     </TableCell>
                     <TableCell className="tabular-nums">{integer.format(row.quantity_full)}</TableCell>
+                    <TableCell>
+                      <Badge variant={row.velocity_status === "Sem venda no período" ? "outline" : "secondary"}>
+                        {row.velocity_status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="tabular-nums">{integer.format(row.sold_units_available_period)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {decimal.format(row.average_daily_sales_available_period)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {formatStockDays(row.days_of_stock_available_period, row.velocity_status)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.sold_units_7d === null ? "—" : integer.format(row.sold_units_7d)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.average_daily_sales_7d === null ? "—" : decimal.format(row.average_daily_sales_7d)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">{formatSevenDayStockDays(row)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.sold_units_14d === null ? "—" : integer.format(row.sold_units_14d)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.days_of_stock_14d === null ? "—" : `${decimal.format(row.days_of_stock_14d)} d`}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.sold_units_30d === null ? "—" : integer.format(row.sold_units_30d)}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.days_of_stock_30d === null ? "—" : `${decimal.format(row.days_of_stock_30d)} d`}
+                    </TableCell>
+                    <TableCell className="tabular-nums">
+                      {row.sales_velocity_change_percentage === null
+                        ? "—"
+                        : `${decimal.format(row.sales_velocity_change_percentage)}%`}
+                    </TableCell>
                     <TableCell className="tabular-nums">
                       {row.weighted_average_age_days === null
                         ? "—"

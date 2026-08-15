@@ -15,6 +15,7 @@
     "validate:full-importer": "ts-node -P tsconfig.scripts.json src/scripts/validate-full-importer.ts",
     "validate:inbounds-importer": "ts-node -P tsconfig.scripts.json src/scripts/validate-inbounds-importer.ts",
     "validate:full-fifo": "ts-node -P tsconfig.scripts.json src/scripts/validate-full-fifo.ts",
+    "validate:stock-velocity": "ts-node -P tsconfig.scripts.json src/scripts/validate-stock-velocity.ts",
     "prepare": "husky",
     "generate:presets": "ts-node -P tsconfig.scripts.json src/scripts/generate-theme-presets.ts"
   },
