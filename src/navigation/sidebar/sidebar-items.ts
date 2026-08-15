@@ -23,6 +23,7 @@ import {
   SquareArrowUpRight,
   UserRound,
   Users,
+  Warehouse,
 } from "lucide-react";
 
 export type NavBadge = "new" | "soon";
@@ -147,6 +148,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Importar Dados",
         url: "/importar-dados",
         icon: Import,
+      },
+      {
+        id: "full-inventory",
+        title: "Estoque FULL",
+        url: "/dashboard/estoque-full",
+        icon: Warehouse,
       },
       {
         id: "email",
