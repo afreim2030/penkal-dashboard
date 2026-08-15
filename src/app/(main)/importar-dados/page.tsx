@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 import { ImportFullInventoryCard } from "./_components/import-full-inventory-card";
+import { ImportInboundsCard } from "./_components/import-inbounds-card";
 import { ImportListingsCard } from "./_components/import-listings-card";
 import { ImportSalesCard } from "./_components/import-sales-card";
 
@@ -26,6 +27,7 @@ export default async function Page() {
         <ImportListingsCard />
         <ImportSalesCard />
         <ImportFullInventoryCard />
+        <ImportInboundsCard />
       </div>
     </main>
   );
