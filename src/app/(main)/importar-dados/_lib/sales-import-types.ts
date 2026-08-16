@@ -3,18 +3,33 @@ export interface SalesImportProblem {
   message: string;
 }
 
-export interface SalesImportResult {
-  success: boolean;
-  duplicate: boolean;
-  message: string;
-  salesProcessed: number;
+export interface SalesImportFileResult {
+  fileName: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  sourceExportedAt: string | null;
+  sourceExportedAtSource: "filename" | "unknown";
+  rows: number;
   saleItems: number;
   packageSummaries: number;
   exchangeSummaries: number;
   insertedRows: number;
-  existingRows: number;
-  unidentifiedSkus: number;
-  unidentifiedMlbs: number;
+  updatedRows: number;
+  exactDuplicates: number;
+  oldIgnoredRows: number;
+  conflicts: number;
   errors: number;
+  duplicate: boolean;
   problems: SalesImportProblem[];
+}
+
+export interface SalesImportResult {
+  success: boolean;
+  duplicate: boolean;
+  message: string;
+  files: SalesImportFileResult[];
+  totals: Omit<
+    SalesImportFileResult,
+    "fileName" | "periodStart" | "periodEnd" | "sourceExportedAt" | "sourceExportedAtSource" | "duplicate" | "problems"
+  >;
 }

@@ -1,21 +1,47 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-import { type ParsedSaleRow, parseSalesXlsx } from "./parse-sales-xlsx";
-import type { SalesImportProblem, SalesImportResult } from "./sales-import-types";
+import { type ParsedSaleRow, parseSalesExportedAt, parseSalesXlsx } from "./parse-sales-xlsx";
+import type { SalesImportFileResult, SalesImportProblem, SalesImportResult } from "./sales-import-types";
 import { createHash } from "node:crypto";
 
 const PROBLEM_LIMIT = 10;
+const MAX_FILES = 20;
+
 type ImportStatus = "completed" | "completed_with_errors" | "failed" | "processing";
 
-interface ImportSalesInput {
+export interface SalesFileInput {
   buffer: Buffer;
   fileName: string;
+}
+
+export interface ImportSalesInput {
+  files: SalesFileInput[];
   userId: string;
   supabase: SupabaseClient;
 }
 
 interface ImportRecord {
   id: string;
+  status: ImportStatus;
+}
+
+interface PreparedFile {
+  input: SalesFileInput;
+  fileHash: string;
+  importRecord: ImportRecord;
+  sourceExportedAt: string | null;
+  sourceExportedAtSource: "filename" | "unknown";
+  parsed: ReturnType<typeof parseSalesXlsx>;
+  validRows: ParsedSaleRow[];
+  problems: SalesImportProblem[];
+}
+
+interface BatchActionCounts {
+  inserted: number;
+  updated: number;
+  duplicate_exact: number;
+  old_ignored: number;
+  conflicts: number;
 }
 
 export function salesFileHash(buffer: Buffer): string {
@@ -28,82 +54,130 @@ export function salesRetryMessage(status: ImportStatus): string | null {
   return null;
 }
 
-function emptyResult(message: string, duplicate: boolean): SalesImportResult {
+function emptyFileResult(
+  fileName: string,
+  sourceExportedAt: string | null,
+  sourceExportedAtSource: "filename" | "unknown",
+  message: string,
+  duplicate: boolean,
+): SalesImportFileResult {
   return {
-    success: false,
-    duplicate,
-    message,
-    salesProcessed: 0,
+    fileName,
+    periodStart: null,
+    periodEnd: null,
+    sourceExportedAt,
+    sourceExportedAtSource,
+    rows: 0,
     saleItems: 0,
     packageSummaries: 0,
     exchangeSummaries: 0,
     insertedRows: 0,
-    existingRows: 0,
-    unidentifiedSkus: 0,
-    unidentifiedMlbs: 0,
+    updatedRows: 0,
+    exactDuplicates: 0,
+    oldIgnoredRows: 0,
+    conflicts: 0,
     errors: duplicate ? 0 : 1,
-    problems: [],
+    duplicate,
+    problems: duplicate ? [] : [{ line: 0, message }],
   };
 }
 
-async function reuseImport(
+async function startImport(
   supabase: SupabaseClient,
-  existing: ImportRecord & { status: ImportStatus },
-): Promise<{ record: ImportRecord | null; blocked: SalesImportResult | null }> {
-  const message = salesRetryMessage(existing.status);
-  if (message) return { record: null, blocked: emptyResult(message, true) };
-
-  const { data, error } = await supabase
-    .from("imports")
-    .update({ status: "processing", row_count: 0, error_count: 0 })
-    .eq("id", existing.id)
-    .in("status", ["failed", "completed_with_errors"])
-    .select("id")
-    .maybeSingle();
-  if (error) throw new Error("Não foi possível reiniciar a importação de vendas.");
-  if (!data) return { record: null, blocked: emptyResult("Uma importação deste arquivo já está em andamento.", true) };
-  return { record: data, blocked: null };
-}
-
-async function startImport(input: ImportSalesInput, fileHash: string) {
-  const { data: previous, error: lookupError } = await input.supabase
+  file: SalesFileInput,
+  fileHash: string,
+  sourceExportedAt: string | null,
+  sourceExportedAtSource: "filename" | "unknown",
+  userId: string,
+): Promise<{ record: ImportRecord | null; blocked: SalesImportFileResult | null }> {
+  const metadata = {
+    file_name: file.fileName,
+    source_exported_at: sourceExportedAt,
+    source_exported_at_source: sourceExportedAtSource,
+  };
+  const { data: previous, error: lookupError } = await supabase
     .from("imports")
     .select("id, status")
     .eq("file_hash", fileHash)
     .maybeSingle();
   if (lookupError) throw new Error("Não foi possível verificar o histórico de importações.");
-  if (previous) return reuseImport(input.supabase, previous as ImportRecord & { status: ImportStatus });
 
-  const { data, error } = await input.supabase
+  if (previous) {
+    const existing = previous as ImportRecord;
+    const message = salesRetryMessage(existing.status);
+    if (message) {
+      return {
+        record: null,
+        blocked: emptyFileResult(file.fileName, sourceExportedAt, sourceExportedAtSource, message, true),
+      };
+    }
+
+    const { data, error } = await supabase
+      .from("imports")
+      .update({ ...metadata, status: "processing", row_count: 0, error_count: 0 })
+      .eq("id", existing.id)
+      .in("status", ["failed", "completed_with_errors"])
+      .select("id, status")
+      .maybeSingle();
+    if (error) throw new Error("Não foi possível reiniciar a importação de vendas.");
+    if (!data) {
+      return {
+        record: null,
+        blocked: emptyFileResult(
+          file.fileName,
+          sourceExportedAt,
+          sourceExportedAtSource,
+          "Uma importação deste arquivo já está em andamento.",
+          true,
+        ),
+      };
+    }
+    return { record: data as ImportRecord, blocked: null };
+  }
+
+  const { data, error } = await supabase
     .from("imports")
     .insert({
+      ...metadata,
       import_type: "sales",
-      file_name: input.fileName,
       file_hash: fileHash,
       status: "processing",
-      imported_by: input.userId,
+      imported_by: userId,
     })
-    .select("id")
+    .select("id, status")
     .single();
-  if (!error) return { record: data, blocked: null };
+  if (!error) return { record: data as ImportRecord, blocked: null };
   if (error.code !== "23505") throw new Error("Não foi possível iniciar o registro da importação.");
 
-  const { data: concurrent, error: concurrentError } = await input.supabase
+  const { data: concurrent, error: concurrentError } = await supabase
     .from("imports")
     .select("id, status")
     .eq("file_hash", fileHash)
     .single();
   if (concurrentError) throw new Error("Não foi possível verificar a importação concorrente.");
-  return reuseImport(input.supabase, concurrent as ImportRecord & { status: ImportStatus });
+  const concurrentRecord = concurrent as ImportRecord;
+  const message = salesRetryMessage(concurrentRecord.status);
+  return {
+    record: message ? null : concurrentRecord,
+    blocked: message ? emptyFileResult(file.fileName, sourceExportedAt, sourceExportedAtSource, message, true) : null,
+  };
 }
 
-function salesRow(row: ParsedSaleRow, productId: string | null, listingId: string | null, sourceFile: string) {
+function salesRow(
+  row: ParsedSaleRow,
+  productId: string | null,
+  listingId: string | null,
+  sourceFile: string,
+  importId: string,
+  sourceExportedAt: string | null,
+) {
   return {
-    sale_number: row.saleNumber,
-    sale_date: row.saleDate,
-    sale_status: row.saleStatus,
-    status_description: row.statusDescription,
-    quantity: row.quantity,
+    import_id: importId,
+    source_exported_at: sourceExportedAt,
+    sale_number: row.saleNumber || null,
+    sale_date: row.saleDate || null,
+    product_id: productId,
+    listing_id: listingId,
     sku_raw: row.skuRaw,
     mlb_raw: row.mlbRaw,
     listing_title: row.listingTitle,
@@ -133,38 +207,136 @@ function salesRow(row: ParsedSaleRow, productId: string | null, listingId: strin
     belongs_to_kit: row.belongsToKit,
     package_parent_sale_number: row.packageParentSaleNumber,
     package_size: row.packageSize,
+    sale_status: row.saleStatus,
+    status_description: row.statusDescription,
+    quantity: row.quantity,
     record_type: row.recordType,
     source_row_number: row.line,
     source_row_hash: row.sourceRowHash,
-    product_id: productId,
-    listing_id: listingId,
     source_file: sourceFile,
   };
 }
 
-export async function importSales(input: ImportSalesInput): Promise<SalesImportResult> {
-  const { record, blocked } = await startImport(input, salesFileHash(input.buffer));
-  if (blocked) return blocked;
-  if (!record) throw new Error("Não foi possível iniciar a importação.");
+function datesBetween(start: string | null, end: string | null): string[] {
+  if (!start || !end) return [];
+  const dates: string[] = [];
+  const current = new Date(`${start}T00:00:00.000Z`);
+  const last = new Date(`${end}T00:00:00.000Z`);
+  while (current <= last) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
 
-  let rowCount = 0;
-  try {
-    const parsed = parseSalesXlsx(input.buffer);
-    rowCount = parsed.rowCount;
-    const problems: SalesImportProblem[] = [...parsed.problems];
-    const fatalLines = new Set(
-      parsed.problems
-        .filter((problem) => /vazio|inválida|inválidas|sem valor financeiro/.test(problem.message))
-        .map((problem) => problem.line),
+async function upsertCoverage(supabase: SupabaseClient, files: PreparedFile[]): Promise<void> {
+  const rows = files.flatMap((file) =>
+    datesBetween(file.parsed.periodStart, file.parsed.periodEnd).map((coverageDate) => ({
+      import_id: file.importRecord.id,
+      coverage_date: coverageDate,
+      coverage_status: "unknown",
+      coverage_source: file.sourceExportedAt ? "export_datetime" : "report_scope",
+      evidence: file.sourceExportedAt
+        ? "Período observado no conteúdo; escopo diário da exportação não foi comprovado."
+        : "Período observado no conteúdo; timestamp e escopo diário não foram comprovados.",
+    })),
+  );
+  if (!rows.length) return;
+  const { error } = await supabase
+    .from("sales_import_coverage")
+    .upsert(rows, { onConflict: "import_id,coverage_date" });
+  if (error) throw new Error("Não foi possível registrar a cobertura da importação de vendas.");
+}
+
+function totals(files: SalesImportFileResult[]): SalesImportResult["totals"] {
+  return files.reduce(
+    (sum, file) => ({
+      rows: sum.rows + file.rows,
+      saleItems: sum.saleItems + file.saleItems,
+      packageSummaries: sum.packageSummaries + file.packageSummaries,
+      exchangeSummaries: sum.exchangeSummaries + file.exchangeSummaries,
+      insertedRows: sum.insertedRows + file.insertedRows,
+      updatedRows: sum.updatedRows + file.updatedRows,
+      exactDuplicates: sum.exactDuplicates + file.exactDuplicates,
+      oldIgnoredRows: sum.oldIgnoredRows + file.oldIgnoredRows,
+      conflicts: sum.conflicts + file.conflicts,
+      errors: sum.errors + file.errors,
+    }),
+    {
+      rows: 0,
+      saleItems: 0,
+      packageSummaries: 0,
+      exchangeSummaries: 0,
+      insertedRows: 0,
+      updatedRows: 0,
+      exactDuplicates: 0,
+      oldIgnoredRows: 0,
+      conflicts: 0,
+      errors: 0,
+    },
+  );
+}
+
+export async function importSales(input: ImportSalesInput): Promise<SalesImportResult> {
+  if (input.files.length === 0) throw new Error("Selecione ao menos um arquivo XLSX.");
+  if (input.files.length > MAX_FILES) throw new Error(`Selecione no máximo ${MAX_FILES} arquivos por lote.`);
+
+  const results: SalesImportFileResult[] = [];
+  const prepared: PreparedFile[] = [];
+
+  for (const file of input.files) {
+    const fileHash = salesFileHash(file.buffer);
+    const sourceExportedAt = parseSalesExportedAt(file.fileName);
+    const sourceExportedAtSource = sourceExportedAt ? "filename" : "unknown";
+    const { record, blocked } = await startImport(
+      input.supabase,
+      file,
+      fileHash,
+      sourceExportedAt,
+      sourceExportedAtSource,
+      input.userId,
     );
-    const validRows = parsed.rows.filter((row) => !fatalLines.has(row.line));
+    if (blocked) {
+      results.push(blocked);
+      continue;
+    }
+    if (!record) throw new Error("Não foi possível iniciar a importação de vendas.");
+
+    try {
+      const parsed = parseSalesXlsx(file.buffer);
+      const problems: SalesImportProblem[] = [...parsed.problems];
+      const fatalLines = new Set(
+        parsed.problems
+          .filter((problem) => /vazio|inválida|inválidas|sem valor financeiro/.test(problem.message))
+          .map((problem) => problem.line),
+      );
+      prepared.push({
+        input: file,
+        fileHash,
+        importRecord: record,
+        sourceExportedAt,
+        sourceExportedAtSource,
+        parsed,
+        validRows: parsed.rows.filter((row) => !fatalLines.has(row.line)),
+        problems,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Não foi possível interpretar o arquivo.";
+      await input.supabase
+        .from("imports")
+        .update({ status: "failed", row_count: 0, error_count: 1 })
+        .eq("id", record.id);
+      results.push(emptyFileResult(file.fileName, sourceExportedAt, sourceExportedAtSource, message, false));
+    }
+  }
+
+  if (prepared.length) {
     const skus = [
-      ...new Set(validRows.flatMap((row) => (row.recordType === "sale_item" && row.skuRaw ? [row.skuRaw] : []))),
+      ...new Set(prepared.flatMap((file) => file.validRows.flatMap((row) => (row.skuRaw ? [row.skuRaw] : [])))),
     ];
     const mlbs = [
-      ...new Set(validRows.flatMap((row) => (row.recordType === "sale_item" && row.mlbRaw ? [row.mlbRaw] : []))),
+      ...new Set(prepared.flatMap((file) => file.validRows.flatMap((row) => (row.mlbRaw ? [row.mlbRaw] : [])))),
     ];
-
     const { data: products, error: productsError } = skus.length
       ? await input.supabase.from("products").select("id, sku").in("sku", skus)
       : { data: [], error: null };
@@ -173,72 +345,107 @@ export async function importSales(input: ImportSalesInput): Promise<SalesImportR
       ? await input.supabase.from("listings").select("id, mlb").in("mlb", mlbs)
       : { data: [], error: null };
     if (listingsError) throw new Error("Não foi possível consultar os anúncios.");
-
     const productIds = new Map((products ?? []).map((product) => [product.sku, product.id]));
     const listingIds = new Map((listings ?? []).map((listing) => [listing.mlb, listing.id]));
-    let unidentifiedSkus = 0;
-    let unidentifiedMlbs = 0;
-    let insertedRows = 0;
-    let existingRows = 0;
 
-    for (const row of validRows) {
-      const productId = row.skuRaw ? (productIds.get(row.skuRaw) ?? null) : null;
-      const listingId = row.mlbRaw ? (listingIds.get(row.mlbRaw) ?? null) : null;
-      if (row.recordType === "sale_item" && !row.skuRaw) {
-        unidentifiedSkus += 1;
-        problems.push({ line: row.line, message: "SKU vazio; item importado sem vínculo de produto" });
-      } else if (row.recordType === "sale_item" && !productId) {
-        unidentifiedSkus += 1;
-        problems.push({ line: row.line, message: `SKU não identificado: ${row.skuRaw}` });
+    const orderedFiles = [...prepared].sort((left, right) => {
+      if (left.sourceExportedAt === null && right.sourceExportedAt !== null) return 1;
+      if (left.sourceExportedAt !== null && right.sourceExportedAt === null) return -1;
+      if (left.sourceExportedAt !== right.sourceExportedAt) {
+        return (left.sourceExportedAt ?? "").localeCompare(right.sourceExportedAt ?? "");
       }
-      if (row.recordType === "sale_item" && !row.mlbRaw) {
-        unidentifiedMlbs += 1;
-        problems.push({ line: row.line, message: "MLB vazio; item importado sem vínculo de anúncio" });
-      } else if (row.recordType === "sale_item" && !listingId) {
-        unidentifiedMlbs += 1;
-        problems.push({ line: row.line, message: `MLB não identificado: ${row.mlbRaw}` });
-      }
+      return left.fileHash.localeCompare(right.fileHash);
+    });
 
-      const { error } = await input.supabase.from("sales").insert(salesRow(row, productId, listingId, input.fileName));
-      if (!error) insertedRows += 1;
-      else if (error.code === "23505") existingRows += 1;
-      else problems.push({ line: row.line, message: `Falha ao gravar a venda ${row.saleNumber}` });
+    for (const file of orderedFiles) {
+      const batchRows = file.validRows.map((row) =>
+        salesRow(
+          row,
+          row.skuRaw ? (productIds.get(row.skuRaw) ?? null) : null,
+          row.mlbRaw ? (listingIds.get(row.mlbRaw) ?? null) : null,
+          file.input.fileName,
+          file.importRecord.id,
+          file.sourceExportedAt,
+        ),
+      );
+      try {
+        const { data: batchResult, error: batchError } = await input.supabase.rpc("process_sales_import_batch", {
+          p_rows: batchRows,
+        });
+        if (batchError) throw new Error("Não foi possível processar o lote histórico de vendas.");
+        const actions = ((batchResult?.by_import ?? {}) as Record<string, BatchActionCounts>)[file.importRecord.id] ?? {
+          inserted: 0,
+          updated: 0,
+          duplicate_exact: 0,
+          old_ignored: 0,
+          conflicts: 0,
+        };
+        const errors = file.problems.length + actions.conflicts;
+        await input.supabase
+          .from("imports")
+          .update({
+            status: errors ? "completed_with_errors" : "completed",
+            row_count: file.parsed.rowCount,
+            error_count: errors,
+            period_start: file.parsed.periodStart,
+            period_end: file.parsed.periodEnd,
+          })
+          .eq("id", file.importRecord.id);
+        results.push({
+          fileName: file.input.fileName,
+          periodStart: file.parsed.periodStart,
+          periodEnd: file.parsed.periodEnd,
+          sourceExportedAt: file.sourceExportedAt,
+          sourceExportedAtSource: file.sourceExportedAtSource,
+          rows: file.parsed.rowCount,
+          saleItems: file.validRows.filter((row) => row.recordType === "sale_item").length,
+          packageSummaries: file.validRows.filter((row) => row.recordType === "package_summary").length,
+          exchangeSummaries: file.validRows.filter((row) => row.recordType === "exchange_summary").length,
+          insertedRows: actions.inserted,
+          updatedRows: actions.updated,
+          exactDuplicates: actions.duplicate_exact,
+          oldIgnoredRows: actions.old_ignored,
+          conflicts: actions.conflicts,
+          errors,
+          duplicate: false,
+          problems: file.problems.slice(0, PROBLEM_LIMIT),
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Não foi possível processar o lote.";
+        await input.supabase
+          .from("imports")
+          .update({ status: "failed", row_count: file.parsed.rowCount, error_count: 1 })
+          .eq("id", file.importRecord.id);
+        results.push({
+          fileName: file.input.fileName,
+          periodStart: file.parsed.periodStart,
+          periodEnd: file.parsed.periodEnd,
+          sourceExportedAt: file.sourceExportedAt,
+          sourceExportedAtSource: file.sourceExportedAtSource,
+          rows: file.parsed.rowCount,
+          saleItems: file.validRows.filter((row) => row.recordType === "sale_item").length,
+          packageSummaries: file.validRows.filter((row) => row.recordType === "package_summary").length,
+          exchangeSummaries: file.validRows.filter((row) => row.recordType === "exchange_summary").length,
+          insertedRows: 0,
+          updatedRows: 0,
+          exactDuplicates: 0,
+          oldIgnoredRows: 0,
+          conflicts: 0,
+          errors: file.problems.length + 1,
+          duplicate: false,
+          problems: [...file.problems, { line: 0, message }].slice(0, PROBLEM_LIMIT),
+        });
+      }
     }
-
-    const errorCount = problems.length;
-    const status = errorCount ? "completed_with_errors" : "completed";
-    const { error: finishError } = await input.supabase
-      .from("imports")
-      .update({
-        status,
-        row_count: rowCount,
-        error_count: errorCount,
-        period_start: parsed.periodStart,
-        period_end: parsed.periodEnd,
-      })
-      .eq("id", record.id);
-    if (finishError) throw new Error("A importação terminou, mas seu status não pôde ser atualizado.");
-
-    return {
-      success: true,
-      duplicate: false,
-      message: "Importação concluída",
-      salesProcessed: new Set(validRows.map((row) => row.saleNumber)).size,
-      saleItems: validRows.filter((row) => row.recordType === "sale_item").length,
-      packageSummaries: validRows.filter((row) => row.recordType === "package_summary").length,
-      exchangeSummaries: validRows.filter((row) => row.recordType === "exchange_summary").length,
-      insertedRows,
-      existingRows,
-      unidentifiedSkus,
-      unidentifiedMlbs,
-      errors: errorCount,
-      problems: problems.slice(0, PROBLEM_LIMIT),
-    };
-  } catch (error) {
-    await input.supabase
-      .from("imports")
-      .update({ status: "failed", row_count: rowCount, error_count: 1 })
-      .eq("id", record.id);
-    throw error;
+    await upsertCoverage(input.supabase, prepared);
   }
+
+  const summary = totals(results);
+  return {
+    success: summary.errors === 0,
+    duplicate: results.length > 0 && results.every((file) => file.duplicate),
+    message: summary.errors ? "Importação concluída com conflitos ou erros." : "Importação concluída.",
+    files: results,
+    totals: summary,
+  };
 }

@@ -228,6 +228,28 @@ export function parseBrazilianDate(value: CellValue): string | null {
   return localDateTimeToIso(Number(year), Number(month), Number(day), Number(hour), Number(minute), Number(second));
 }
 
+export function parseSalesExportedAt(fileName: string): string | null {
+  const match = fileName.match(/(20\d{2})-(\d{2})-(\d{2})[_ -](\d{1,2})-(\d{2})hs?/i);
+  if (!match) return null;
+
+  const [, year, month, day, hour, minute] = match;
+  try {
+    const instant = Temporal.PlainDateTime.from({
+      year: Number(year),
+      month: Number(month),
+      day: Number(day),
+      hour: Number(hour),
+      minute: Number(minute),
+      second: 0,
+    })
+      .toZonedDateTime(SALES_TIME_ZONE)
+      .toInstant();
+    return new Date(Number(instant.epochMilliseconds)).toISOString();
+  } catch {
+    return null;
+  }
+}
+
 function localDateTimeToIso(
   year: number,
   month: number,
