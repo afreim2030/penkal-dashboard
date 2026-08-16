@@ -21,8 +21,13 @@ function formatDate(value: string | null): string {
 function Difference({ value }: { value: number }) {
   if (value === 0) return <span className="text-muted-foreground">0</span>;
   return (
-    <span className={value > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "font-medium text-red-600 dark:text-red-400"}>
-      {value > 0 ? "+" : ""}{integer.format(value)}
+    <span
+      className={
+        value > 0 ? "font-medium text-emerald-600 dark:text-emerald-400" : "font-medium text-red-600 dark:text-red-400"
+      }
+    >
+      {value > 0 ? "+" : ""}
+      {integer.format(value)}
     </span>
   );
 }
@@ -41,9 +46,14 @@ export function FullInboundsDashboard({ data }: { data: FullInboundsDashboardDat
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Envios recebidos</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><Truck className="size-5" />{integer.format(data.summary.inbounds)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <Truck className="size-5" />
+              {integer.format(data.summary.inbounds)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{formatDate(data.summary.firstReceivedAt)} até {formatDate(data.summary.lastReceivedAt)}</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {formatDate(data.summary.firstReceivedAt)} até {formatDate(data.summary.lastReceivedAt)}
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
@@ -55,23 +65,35 @@ export function FullInboundsDashboard({ data }: { data: FullInboundsDashboardDat
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Unidades processadas</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><PackageCheck className="size-5" />{integer.format(data.summary.processed)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <PackageCheck className="size-5" />
+              {integer.format(data.summary.processed)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{integer.format(data.summary.sellable)} vendáveis</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {integer.format(data.summary.sellable)} vendáveis
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Diferença acumulada</CardDescription>
-            <CardTitle className="text-2xl tabular-nums"><Difference value={data.summary.difference} /></CardTitle>
+            <CardTitle className="text-2xl tabular-nums">
+              <Difference value={data.summary.difference} />
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-xs">Processadas menos declaradas</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Envios com diferença</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><AlertTriangle className="size-5" />{integer.format(data.summary.withDifference)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <AlertTriangle className="size-5" />
+              {integer.format(data.summary.withDifference)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{integer.format(data.summary.unidentified)} unidades não identificadas</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {integer.format(data.summary.unidentified)} unidades não identificadas
+          </CardContent>
         </Card>
       </div>
 
@@ -101,12 +123,20 @@ export function FullInboundsDashboard({ data }: { data: FullInboundsDashboardDat
                   <TableCell className="text-right tabular-nums">{integer.format(row.skus)}</TableCell>
                   <TableCell className="text-right tabular-nums">{integer.format(row.declared)}</TableCell>
                   <TableCell className="text-right tabular-nums">{integer.format(row.processed)}</TableCell>
-                  <TableCell className="text-right tabular-nums"><Difference value={row.difference} /></TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    <Difference value={row.difference} />
+                  </TableCell>
                   <TableCell>
                     {row.hasDifference ? (
-                      <Badge variant="outline" className="gap-1"><AlertTriangle className="size-3" />Com diferença</Badge>
+                      <Badge variant="outline" className="gap-1">
+                        <AlertTriangle className="size-3" />
+                        Com diferença
+                      </Badge>
                     ) : (
-                      <Badge variant="secondary" className="gap-1"><CheckCircle2 className="size-3" />Correto</Badge>
+                      <Badge variant="secondary" className="gap-1">
+                        <CheckCircle2 className="size-3" />
+                        Correto
+                      </Badge>
                     )}
                   </TableCell>
                 </TableRow>
@@ -137,10 +167,14 @@ export function FullInboundsDashboard({ data }: { data: FullInboundsDashboardDat
                 {data.topDifferences.map((row) => (
                   <TableRow key={row.sku ?? `sem-sku-${row.productName}`}>
                     <TableCell className="font-medium">{row.sku ?? "Sem SKU"}</TableCell>
-                    <TableCell className="max-w-[260px] truncate" title={row.productName ?? undefined}>{row.productName ?? "Produto não identificado"}</TableCell>
+                    <TableCell className="max-w-[260px] truncate" title={row.productName ?? undefined}>
+                      {row.productName ?? "Produto não identificado"}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.declared)}</TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.processed)}</TableCell>
-                    <TableCell className="text-right"><Difference value={row.difference} /></TableCell>
+                    <TableCell className="text-right">
+                      <Difference value={row.difference} />
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -168,8 +202,12 @@ export function FullInboundsDashboard({ data }: { data: FullInboundsDashboardDat
                 {data.topReceived.map((row) => (
                   <TableRow key={row.sku ?? `sem-sku-${row.productName}`}>
                     <TableCell className="font-medium">{row.sku ?? "Sem SKU"}</TableCell>
-                    <TableCell className="max-w-[260px] truncate" title={row.productName ?? undefined}>{row.productName ?? "Produto não identificado"}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{integer.format(row.processed)}</TableCell>
+                    <TableCell className="max-w-[260px] truncate" title={row.productName ?? undefined}>
+                      {row.productName ?? "Produto não identificado"}
+                    </TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {integer.format(row.processed)}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.inboundCount)}</TableCell>
                     <TableCell>{formatDate(row.lastReceivedAt)}</TableCell>
                   </TableRow>
