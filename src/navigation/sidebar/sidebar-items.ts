@@ -90,8 +90,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Publicidade",
         url: "/dashboard/publicidade",
         icon: Megaphone,
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "alerts",
