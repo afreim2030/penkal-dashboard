@@ -268,6 +268,14 @@ function localDateTimeToIso(
   }
 }
 
+export function saleBusinessDate(iso: string): string | null {
+  try {
+    return Temporal.Instant.from(iso).toZonedDateTimeISO(SALES_TIME_ZONE).toPlainDate().toString();
+  } catch {
+    return null;
+  }
+}
+
 function findColumns(row: CellValue[]): Map<ColumnKey, number> {
   const normalizedCells = row.map(normalizeHeader);
   const columns = new Map<ColumnKey, number>();
@@ -415,8 +423,8 @@ export function parseSalesWorkbook(workbook: WorkBook): ParsedSalesFile {
   }
 
   const validDates = rows
-    .map((row) => row.saleDate.slice(0, 10))
-    .filter(Boolean)
+    .map((row) => saleBusinessDate(row.saleDate))
+    .filter((value): value is string => value !== null)
     .sort();
   return {
     rows,
