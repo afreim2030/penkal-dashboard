@@ -84,8 +84,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Envios FULL",
         url: "/dashboard/envios-full",
         icon: Truck,
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "ads",
