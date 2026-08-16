@@ -1,6 +1,6 @@
-import { createHash } from "node:crypto";
-
 import { read, utils, type WorkBook } from "xlsx";
+
+import { createHash } from "node:crypto";
 
 type CellValue = string | number | boolean | Date | null | undefined;
 
@@ -110,7 +110,11 @@ function isoDate(day: string, monthName: string, year: string): string | null {
 }
 
 function reportPeriod(rows: CellValue[][]): { start: string; end: string } | null {
-  const scope = rows.slice(0, 6).flat().map(text).find((value) => /este relatório mostra as métricas/i.test(value));
+  const scope = rows
+    .slice(0, 6)
+    .flat()
+    .map(text)
+    .find((value) => /este relatório mostra as métricas/i.test(value));
   if (!scope) return null;
 
   const single = scope.match(/no dia\s+(\d{1,2})\s+de\s+([\p{L}]+)\s+de\s+(\d{4})/iu);
@@ -131,7 +135,11 @@ function reportPeriod(rows: CellValue[][]): { start: string; end: string } | nul
 function workbookRows(workbook: WorkBook): CellValue[][] {
   for (const name of workbook.SheetNames) {
     const rows = utils.sheet_to_json<CellValue[]>(workbook.Sheets[name], { header: 1, raw: true, defval: null });
-    if (rows.some((row) => REQUIRED_HEADERS.every((required) => row.some((cell) => normalize(cell) === normalize(required))))) {
+    if (
+      rows.some((row) =>
+        REQUIRED_HEADERS.every((required) => row.some((cell) => normalize(cell) === normalize(required))),
+      )
+    ) {
       return rows;
     }
   }

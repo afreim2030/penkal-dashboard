@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertCircle, BarChart3, CheckCircle2, Upload } from "lucide-react";
 import { useRef, useState } from "react";
+
+import { AlertCircle, BarChart3, CheckCircle2, Upload } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,9 @@ export function ImportPerformanceCard() {
       const response = await fetch("/api/importacoes/performance", { method: "POST", body: formData });
       const payload = (await response.json()) as PerformanceImportResult | { message?: string };
       if (!response.ok) {
-        setError("message" in payload ? (payload.message ?? "Não foi possível importar.") : "Não foi possível importar.");
+        setError(
+          "message" in payload ? (payload.message ?? "Não foi possível importar.") : "Não foi possível importar.",
+        );
         return;
       }
       setResult(payload as PerformanceImportResult);
@@ -111,10 +114,14 @@ export function ImportPerformanceCard() {
                 Selecionar arquivos
               </Button>
               <span className="text-muted-foreground text-sm">
-                {files.length ? `${files.length} arquivo${files.length === 1 ? "" : "s"}` : "Nenhum arquivo selecionado"}
+                {files.length
+                  ? `${files.length} arquivo${files.length === 1 ? "" : "s"}`
+                  : "Nenhum arquivo selecionado"}
               </span>
             </div>
-            <FieldDescription>Use os relatórios “Métricas de desempenho dos seus anúncios”. Até 20 arquivos por lote.</FieldDescription>
+            <FieldDescription>
+              Use os relatórios “Métricas de desempenho dos seus anúncios”. Até 20 arquivos por lote.
+            </FieldDescription>
           </Field>
         </FieldGroup>
 
@@ -122,7 +129,9 @@ export function ImportPerformanceCard() {
           <Alert>
             <Spinner />
             <AlertTitle>Processando performance...</AlertTitle>
-            <AlertDescription>Os anúncios são vinculados pelo MLB e, quando possível, pelo SKU já cadastrado.</AlertDescription>
+            <AlertDescription>
+              Os anúncios são vinculados pelo MLB e, quando possível, pelo SKU já cadastrado.
+            </AlertDescription>
           </Alert>
         ) : null}
 
@@ -140,19 +149,26 @@ export function ImportPerformanceCard() {
             <AlertTitle>{result.totals.errors ? "Importação com pendências" : "Performance importada"}</AlertTitle>
             <AlertDescription>
               <p>
-                {result.totals.processed} linhas processadas · {result.totals.duplicates} arquivo(s) duplicado(s) · {result.totals.errors} erro(s)
+                {result.totals.processed} linhas processadas · {result.totals.duplicates} arquivo(s) duplicado(s) ·{" "}
+                {result.totals.errors} erro(s)
               </p>
               <div className="mt-3 flex flex-col gap-2">
                 {result.files.map((file) => (
                   <div key={file.fileName} className="rounded-md border p-2 text-sm">
-                    <p className="truncate font-medium" title={file.fileName}>{file.fileName}</p>
+                    <p className="truncate font-medium" title={file.fileName}>
+                      {file.fileName}
+                    </p>
                     <p className="text-muted-foreground">
                       {file.periodStart ?? "—"} até {file.periodEnd ?? "—"} · {file.processed} processadas
                       {file.duplicate ? " · já importado" : ""}
                     </p>
                     {file.problems.slice(0, 3).map((problem) => (
-                      <p key={`${file.fileName}-${problem.line}-${problem.message}`} className="text-destructive text-xs">
-                        {problem.line ? `Linha ${problem.line}: ` : ""}{problem.message}
+                      <p
+                        key={`${file.fileName}-${problem.line}-${problem.message}`}
+                        className="text-destructive text-xs"
+                      >
+                        {problem.line ? `Linha ${problem.line}: ` : ""}
+                        {problem.message}
                       </p>
                     ))}
                   </div>

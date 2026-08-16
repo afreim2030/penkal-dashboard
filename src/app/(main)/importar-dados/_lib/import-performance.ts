@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createHash } from "node:crypto";
 
-import { parsePerformanceXlsx, type ParsedPerformanceRow } from "./parse-performance-xlsx";
+import { type ParsedPerformanceRow, parsePerformanceXlsx } from "./parse-performance-xlsx";
+import { createHash } from "node:crypto";
 
 const BATCH_SIZE = 500;
 
