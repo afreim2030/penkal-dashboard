@@ -42,8 +42,7 @@ export function ImportSalesCard() {
       return;
     }
     const invalidFile = files.find(
-      (file) =>
-        !file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx") || file.size === 0 || file.size > MAX_FILE_SIZE,
+      (file) => !file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx") || file.size === 0 || file.size > MAX_FILE_SIZE,
     );
     if (invalidFile) {
       setRequestError(`O arquivo ${invalidFile.name} deve ser XLSX, ter até 50 MB e não pode estar vazio.`);
@@ -142,7 +141,8 @@ export function ImportSalesCard() {
               </p>
             </div>
             <FieldDescription>
-              Somente .xlsx, até 50 MB por arquivo e no máximo 20 arquivos. O envio temporário é privado e removido após o processamento.
+              Somente .xlsx, até 50 MB por arquivo e no máximo 20 arquivos. O envio temporário é privado e removido após
+              o processamento.
             </FieldDescription>
           </Field>
         </FieldGroup>
@@ -164,7 +164,9 @@ export function ImportSalesCard() {
         {result && (
           <Alert variant={result.totals.errors ? "destructive" : undefined}>
             {result.totals.errors ? <AlertCircle /> : <CheckCircle2 />}
-            <AlertTitle>{result.totals.errors ? "Importação concluída com pendências" : "Importação concluída"}</AlertTitle>
+            <AlertTitle>
+              {result.totals.errors ? "Importação concluída com pendências" : "Importação concluída"}
+            </AlertTitle>
             <AlertDescription>
               <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
                 <div>Linhas: {result.totals.rows}</div>

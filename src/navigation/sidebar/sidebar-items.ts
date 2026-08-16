@@ -2,6 +2,7 @@ import {
   Bell,
   Import,
   LayoutDashboard,
+  type LucideIcon,
   Megaphone,
   Package,
   Settings,
@@ -9,7 +10,6 @@ import {
   Sparkles,
   Truck,
   Warehouse,
-  type LucideIcon,
 } from "lucide-react";
 
 export type NavBadge = "new" | "soon";

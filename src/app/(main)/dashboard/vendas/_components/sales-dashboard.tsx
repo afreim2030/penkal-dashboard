@@ -5,16 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import type {
-  SalesDashboardData,
-  SalesDayMetrics,
-  SalesPeriodMetrics,
-} from "../_lib/load-sales-dashboard";
+import type { SalesDashboardData, SalesDayMetrics, SalesPeriodMetrics } from "../_lib/load-sales-dashboard";
 
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const percent = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const percent = new Intl.NumberFormat("pt-BR", {
+  style: "percent",
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 1,
+});
 
 const WEEKDAYS: Record<number, string> = {
   1: "Segunda",
@@ -175,7 +175,9 @@ export function SalesDashboard({ data }: { data: SalesDashboardData }) {
           <Info />
           <AlertTitle>Existe um dia parcial no relatório</AlertTitle>
           <AlertDescription>
-            O último dia completo é {formatDate(data.coverage.maxCompleteDate)}. Dados de {formatDate(data.coverage.maxCoveredDate)} aparecem na evolução diária, mas não entram nos comparativos fechados.
+            O último dia completo é {formatDate(data.coverage.maxCompleteDate)}. Dados de{" "}
+            {formatDate(data.coverage.maxCoveredDate)} aparecem na evolução diária, mas não entram nos comparativos
+            fechados.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -243,7 +245,9 @@ export function SalesDashboard({ data }: { data: SalesDashboardData }) {
                     {integer.format(row.units)}
                   </div>
                 </div>
-                <div className="text-right text-muted-foreground text-xs tabular-nums">{integer.format(row.orders)} ped.</div>
+                <div className="text-right text-muted-foreground text-xs tabular-nums">
+                  {integer.format(row.orders)} ped.
+                </div>
               </div>
             ))}
           </CardContent>
@@ -259,7 +263,10 @@ export function SalesDashboard({ data }: { data: SalesDashboardData }) {
               <div key={row.hour} className="grid grid-cols-[52px_1fr_54px] items-center gap-2 text-sm">
                 <span className="font-medium tabular-nums">{String(row.hour).padStart(2, "0")}:00</span>
                 <div className="h-6 overflow-hidden rounded bg-muted">
-                  <div className="h-full rounded bg-primary/70" style={{ width: `${Math.max(6, (row.units / maxHourlyUnits) * 100)}%` }} />
+                  <div
+                    className="h-full rounded bg-primary/70"
+                    style={{ width: `${Math.max(6, (row.units / maxHourlyUnits) * 100)}%` }}
+                  />
                 </div>
                 <span className="text-right tabular-nums">{integer.format(row.units)}</span>
               </div>
@@ -325,7 +332,9 @@ export function SalesDashboard({ data }: { data: SalesDashboardData }) {
                     <TableCell className="font-medium">{WEEKDAYS[row.weekday] ?? row.weekday}</TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.daysObserved)}</TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.units)}</TableCell>
-                    <TableCell className="text-right font-medium tabular-nums">{decimal.format(row.averageUnitsPerDay)}</TableCell>
+                    <TableCell className="text-right font-medium tabular-nums">
+                      {decimal.format(row.averageUnitsPerDay)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -341,19 +350,28 @@ export function SalesDashboard({ data }: { data: SalesDashboardData }) {
           <CardContent className="flex flex-col gap-3 text-sm">
             <div className="flex items-start gap-2">
               <Badge variant="outline">Venda válida</Badge>
-              <p className="text-muted-foreground">Somente <code>sale_item</code>; pacotes e trocas ficam fora da soma por SKU.</p>
+              <p className="text-muted-foreground">
+                Somente <code>sale_item</code>; pacotes e trocas ficam fora da soma por SKU.
+              </p>
             </div>
             <div className="flex items-start gap-2">
               <Badge variant="outline">Cancelamentos</Badge>
-              <p className="text-muted-foreground">Status cancelados e reembolsos negativos são retirados dos indicadores.</p>
+              <p className="text-muted-foreground">
+                Status cancelados e reembolsos negativos são retirados dos indicadores.
+              </p>
             </div>
             <div className="flex items-start gap-2">
               <Badge variant="outline">Cobertura</Badge>
-              <p className="text-muted-foreground">Comparações só são mostradas quando todos os dias do período estão comprovados como completos.</p>
+              <p className="text-muted-foreground">
+                Comparações só são mostradas quando todos os dias do período estão comprovados como completos.
+              </p>
             </div>
             <div className="flex items-start gap-2">
               <AlertCircle className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-              <p className="text-muted-foreground">O faturamento prioriza Receita bruta do relatório e usa campos financeiros de fallback apenas quando ela está ausente.</p>
+              <p className="text-muted-foreground">
+                O faturamento prioriza Receita bruta do relatório e usa campos financeiros de fallback apenas quando ela
+                está ausente.
+              </p>
             </div>
           </CardContent>
         </Card>
