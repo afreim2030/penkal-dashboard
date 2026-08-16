@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 
-import { importSales } from "@/app/(main)/importar-dados/_lib/import-sales";
+import { importSales, type SalesFileInput } from "@/app/(main)/importar-dados/_lib/import-sales";
 import { createClient } from "@/lib/supabase/server";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const IMPORT_BUCKET = "import-staging";
+const MAX_FILES = 20;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+interface StagedSaleFile {
+  path: string;
+  fileName: string;
+}
 
 export const runtime = "nodejs";
+export const maxDuration = 300;
+
+function isStagedSaleFile(value: unknown): value is StagedSaleFile {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Record<string, unknown>;
+  return typeof candidate.path === "string" && typeof candidate.fileName === "string";
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -17,33 +31,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Sessão inválida. Entre novamente para importar." }, { status: 401 });
   }
 
+  let stagedFiles: StagedSaleFile[] = [];
+
   try {
-    const formData = await request.formData();
-    const files = formData.getAll("files").length ? formData.getAll("files") : [formData.get("file")];
-    if (!files.length || files.some((file) => !(file instanceof File))) {
+    const body = (await request.json()) as { files?: unknown };
+    if (!Array.isArray(body.files) || !body.files.length || !body.files.every(isStagedSaleFile)) {
       return NextResponse.json({ message: "Selecione ao menos um arquivo XLSX." }, { status: 400 });
     }
-    const uploadFiles = files as File[];
-    if (uploadFiles.some((file) => !file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx"))) {
-      return NextResponse.json({ message: "Formato inválido. Envie somente arquivos .xlsx." }, { status: 400 });
-    }
-    if (uploadFiles.some((file) => file.size === 0 || file.size > MAX_FILE_SIZE)) {
-      return NextResponse.json({ message: "Cada arquivo deve ter até 10 MB e não pode estar vazio." }, { status: 400 });
+
+    stagedFiles = body.files;
+    if (stagedFiles.length > MAX_FILES) {
+      return NextResponse.json({ message: `Selecione no máximo ${MAX_FILES} arquivos por lote.` }, { status: 400 });
     }
 
-    const result = await importSales({
-      files: await Promise.all(
-        uploadFiles.map(async (file) => ({
-          buffer: Buffer.from(await file.arrayBuffer()),
-          fileName: file.name,
-        })),
-      ),
-      userId: user.id,
-      supabase,
-    });
-    return NextResponse.json(result, { status: result.success || result.duplicate ? 200 : 409 });
+    const userPrefix = `${user.id}/`;
+    if (
+      stagedFiles.some(
+        (file) =>
+          !file.path.startsWith(userPrefix) ||
+          !file.fileName.toLocaleLowerCase("pt-BR").endsWith(".xlsx") ||
+          file.fileName.length > 255,
+      )
+    ) {
+      return NextResponse.json({ message: "Arquivo de vendas inválido." }, { status: 400 });
+    }
+
+    const files: SalesFileInput[] = [];
+    for (const stagedFile of stagedFiles) {
+      const { data, error } = await supabase.storage.from(IMPORT_BUCKET).download(stagedFile.path);
+      if (error || !data) {
+        throw new Error(`Não foi possível ler o arquivo temporário ${stagedFile.fileName}.`);
+      }
+      if (data.size === 0 || data.size > MAX_FILE_SIZE) {
+        throw new Error(`O arquivo ${stagedFile.fileName} deve ter até 50 MB e não pode estar vazio.`);
+      }
+      files.push({
+        buffer: Buffer.from(await data.arrayBuffer()),
+        fileName: stagedFile.fileName,
+      });
+    }
+
+    const result = await importSales({ files, userId: user.id, supabase });
+    return NextResponse.json(result, { status: 200 });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Não foi possível processar o arquivo.";
+    const message = error instanceof Error ? error.message : "Não foi possível processar os arquivos.";
     return NextResponse.json({ message }, { status: 500 });
+  } finally {
+    const paths = stagedFiles.map((file) => file.path);
+    if (paths.length) {
+      await supabase.storage.from(IMPORT_BUCKET).remove(paths);
+    }
   }
 }
