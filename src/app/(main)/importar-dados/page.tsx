@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ImportFullInventoryCard } from "./_components/import-full-inventory-card";
 import { ImportInboundsCard } from "./_components/import-inbounds-card";
 import { ImportListingsCard } from "./_components/import-listings-card";
+import { ImportPerformanceCard } from "./_components/import-performance-card";
 import { ImportSalesCard } from "./_components/import-sales-card";
 
 export default async function Page() {
@@ -26,6 +27,7 @@ export default async function Page() {
       <div className="grid max-w-6xl gap-4 lg:grid-cols-2">
         <ImportListingsCard />
         <ImportSalesCard />
+        <ImportPerformanceCard />
         <ImportFullInventoryCard />
         <ImportInboundsCard />
       </div>
