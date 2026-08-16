@@ -122,8 +122,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Configurações",
         url: "/dashboard/configuracoes",
         icon: Settings,
-        badge: "soon",
-        disabled: true,
       },
     ],
   },
