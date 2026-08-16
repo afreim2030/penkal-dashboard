@@ -90,12 +90,7 @@ export async function loadSettingsDashboard(): Promise<SettingsDashboardData> {
       .order("received_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    supabase
-      .from("ad_metrics")
-      .select("period_end")
-      .order("period_end", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    supabase.from("ad_metrics").select("period_end").order("period_end", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   if (importsResult.error) throw new Error(`Não foi possível consultar as importações: ${importsResult.error.message}`);
@@ -172,7 +167,8 @@ export async function loadSettingsDashboard(): Promise<SettingsDashboardData> {
 
   if (inboundResult.data?.received_at) {
     const source = sources.find((item) => item.key === "full_inbounds");
-    if (source) source.detail = `${source.detail} Último recebimento conhecido: ${String(inboundResult.data.received_at).slice(0, 10)}.`;
+    if (source)
+      source.detail = `${source.detail} Último recebimento conhecido: ${String(inboundResult.data.received_at).slice(0, 10)}.`;
   }
 
   return {

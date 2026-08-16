@@ -44,9 +44,7 @@ export function SettingsDashboard({ data }: { data: SettingsDashboardData }) {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-1">
         <h1 className="text-3xl font-semibold tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground text-sm">
-          Conta, regras fixas do painel e situação das fontes de dados.
-        </p>
+        <p className="text-muted-foreground text-sm">Conta, regras fixas do painel e situação das fontes de dados.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
