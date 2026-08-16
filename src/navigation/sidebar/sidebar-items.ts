@@ -96,8 +96,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Alertas",
         url: "/dashboard/alertas",
         icon: Bell,
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "ai",
