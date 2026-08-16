@@ -72,8 +72,6 @@ export const sidebarItems: NavGroup[] = [
         title: "Produtos",
         url: "/dashboard/produtos",
         icon: Package,
-        badge: "soon",
-        disabled: true,
       },
       {
         id: "full-inventory",
