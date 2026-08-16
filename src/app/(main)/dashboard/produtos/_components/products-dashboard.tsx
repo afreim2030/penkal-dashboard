@@ -19,15 +19,31 @@ function formatDate(value: string | null): string {
 
 function Trend({ value }: { value: number | null }) {
   if (value === null || !Number.isFinite(value)) {
-    return <span className="inline-flex items-center gap-1 text-muted-foreground"><Minus className="size-3" /> sem base</span>;
+    return (
+      <span className="inline-flex items-center gap-1 text-muted-foreground">
+        <Minus className="size-3" /> sem base
+      </span>
+    );
   }
   if (value > 0) {
-    return <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><ArrowUpRight className="size-3" /> {percentage.format(value)}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+        <ArrowUpRight className="size-3" /> {percentage.format(value)}
+      </span>
+    );
   }
   if (value < 0) {
-    return <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400"><ArrowDownRight className="size-3" /> {percentage.format(value)}</span>;
+    return (
+      <span className="inline-flex items-center gap-1 text-red-600 dark:text-red-400">
+        <ArrowDownRight className="size-3" /> {percentage.format(value)}
+      </span>
+    );
   }
-  return <span className="inline-flex items-center gap-1 text-muted-foreground"><Minus className="size-3" /> 0%</span>;
+  return (
+    <span className="inline-flex items-center gap-1 text-muted-foreground">
+      <Minus className="size-3" /> 0%
+    </span>
+  );
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -59,7 +75,8 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
           <Info />
           <AlertTitle>Visitas e conversão ainda não carregadas</AlertTitle>
           <AlertDescription>
-            O painel já usa vendas e estoque FULL. Importe os relatórios de performance para preencher visitas e conversão por SKU.
+            O painel já usa vendas e estoque FULL. Importe os relatórios de performance para preencher visitas e
+            conversão por SKU.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -96,7 +113,9 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Afetando tempo de estoque</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{integer.format(data.summary.stockTimeAffectedUnits)}</CardTitle>
+            <CardTitle className="text-2xl tabular-nums">
+              {integer.format(data.summary.stockTimeAffectedUnits)}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-xs">Unidades do FULL</CardContent>
         </Card>
@@ -133,11 +152,15 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                   <TableCell className="font-medium tabular-nums">{row.sku}</TableCell>
                   <TableCell>
                     <div className="max-w-[460px]">
-                      <p className="truncate font-medium" title={row.name}>{row.name}</p>
+                      <p className="truncate font-medium" title={row.name}>
+                        {row.name}
+                      </p>
                       {row.category ? <p className="truncate text-muted-foreground text-xs">{row.category}</p> : null}
                     </div>
                   </TableCell>
-                  <TableCell><StatusBadge status={row.status} /></TableCell>
+                  <TableCell>
+                    <StatusBadge status={row.status} />
+                  </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">{integer.format(row.fullStock)}</TableCell>
                   <TableCell className="text-right tabular-nums">{integer.format(row.unitsPeriod)}</TableCell>
                   <TableCell className="text-right tabular-nums">{currency.format(row.revenuePeriod)}</TableCell>
@@ -148,9 +171,15 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                     {row.conversion7 === null ? "—" : percentage.format(row.conversion7)}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">{daysWithoutSale(row)}</TableCell>
-                  <TableCell className="text-right"><Trend value={row.trend7} /></TableCell>
+                  <TableCell className="text-right">
+                    <Trend value={row.trend7} />
+                  </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {row.stockTimeAffected > 0 ? <Badge variant="outline">{integer.format(row.stockTimeAffected)} un.</Badge> : "—"}
+                    {row.stockTimeAffected > 0 ? (
+                      <Badge variant="outline">{integer.format(row.stockTimeAffected)} un.</Badge>
+                    ) : (
+                      "—"
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
