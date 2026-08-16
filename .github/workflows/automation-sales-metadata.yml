@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   patch:
-    if: github.event.head_commit.message != 'Automacao: corrige metadados historicos de vendas'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
