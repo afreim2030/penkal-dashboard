@@ -1,5 +1,5 @@
 import { salesFileHash } from "../app/(main)/importar-dados/_lib/import-sales";
-import { parseSalesExportedAt } from "../app/(main)/importar-dados/_lib/parse-sales-xlsx";
+import { parseSalesExportedAt, saleBusinessDate } from "../app/(main)/importar-dados/_lib/parse-sales-xlsx";
 import assert from "node:assert/strict";
 
 type Identity = {
@@ -23,7 +23,7 @@ type Decision = "insert" | "update" | "duplicate_exact" | "old_ignored" | "confl
 function identityKey(row: Identity): string | null {
   if (row.recordType !== "sale_item") return null;
   if (!row.saleNumber || !row.sku || !row.mlb) return null;
-  return [row.saleNumber, row.sku, row.mlb, row.recordType].join("\\u001f");
+  return [row.saleNumber, row.sku, row.mlb, row.recordType].join("\u001f");
 }
 
 function decide(existing: Version | undefined, incoming: Version, hashOwner: Version | undefined): Decision {
@@ -59,11 +59,14 @@ function resolveBatch(rows: Version[]): Map<string, Version> {
   return state;
 }
 
-const namedFile = "20260811_Vendas_BR_Mercado_Libre_y_Mercado_Shops_2026-08-11_14-43hs_1102986048.xlsx";
+const namedFile = "20260811_Vendas_BR_Mercado_Livre_y_Mercado_Shops_2026-08-11_14-43hs_1102986048.xlsx";
 assert.equal(parseSalesExportedAt(namedFile), "2026-08-11T17:43:00.000Z");
 assert.equal(parseSalesExportedAt("JANEIRO.xlsx"), null);
 assert.equal(parseSalesExportedAt("2026-02-30_Vendas_25-70hs.xlsx"), null);
 assert.equal(parseSalesExportedAt("2026-08-11_23-59hs.xlsx"), "2026-08-12T02:59:00.000Z");
+assert.equal(saleBusinessDate("2026-08-02T02:59:59.000Z"), "2026-08-01");
+assert.equal(saleBusinessDate("2026-08-02T03:00:00.000Z"), "2026-08-02");
+assert.equal(saleBusinessDate("invalid"), null);
 
 const base: Version = {
   saleNumber: "1",
