@@ -44,7 +44,11 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
       severity: "critical",
       category: "Vendas",
       title: "Conflito de importação de venda",
-      description: [conflict.sale_number ? `Venda ${conflict.sale_number}` : null, conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null, conflict.conflict_type]
+      description: [
+        conflict.sale_number ? `Venda ${conflict.sale_number}` : null,
+        conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null,
+        conflict.conflict_type,
+      ]
         .filter(Boolean)
         .join(" · "),
       href: "/importar-dados",

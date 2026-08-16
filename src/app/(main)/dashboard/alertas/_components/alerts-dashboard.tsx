@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { AlertTriangle, CircleAlert, Info } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +31,30 @@ export function AlertsDashboard({ data }: { data: AlertsDashboardData }) {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card><CardHeader className="pb-2"><CardDescription>Total</CardDescription><CardTitle className="text-2xl tabular-nums">{data.summary.total}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Críticos</CardDescription><CardTitle className="text-2xl tabular-nums">{data.summary.critical}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Atenção</CardDescription><CardTitle className="text-2xl tabular-nums">{data.summary.warning}</CardTitle></CardHeader></Card>
-        <Card><CardHeader className="pb-2"><CardDescription>Informativos</CardDescription><CardTitle className="text-2xl tabular-nums">{data.summary.info}</CardTitle></CardHeader></Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Total</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{data.summary.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Críticos</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{data.summary.critical}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Atenção</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{data.summary.warning}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Informativos</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{data.summary.info}</CardTitle>
+          </CardHeader>
+        </Card>
       </div>
 
       <Card>
@@ -62,7 +83,9 @@ export function AlertsDashboard({ data }: { data: AlertsDashboardData }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   {alert.value ? <span className="font-medium tabular-nums text-sm">{alert.value}</span> : null}
-                  <Button asChild size="sm" variant="outline"><Link href={alert.href}>Ver</Link></Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={alert.href}>Ver</Link>
+                  </Button>
                 </div>
               </div>
             ))
