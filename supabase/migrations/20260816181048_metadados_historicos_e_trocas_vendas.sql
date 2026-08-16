@@ -1,0 +1,1 @@
+-- Conteudo completo permanece na migration historica anterior e sera consolidado antes do merge.
