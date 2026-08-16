@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
 
+# Valida o estado atual da branch depois das correções automáticas de estilo.
 jobs:
   validate:
     runs-on: ubuntu-latest
