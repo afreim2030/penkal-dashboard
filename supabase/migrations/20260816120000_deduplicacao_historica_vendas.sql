@@ -31,7 +31,10 @@ set
     when parsed.parts[2]::integer not between 1 and 12 then null
     when parsed.parts[3]::integer < 1 then null
     when parsed.parts[3]::integer > extract(
-      day from (make_date(parsed.parts[1]::integer, parsed.parts[2]::integer, 1) + interval '1 month - 1 day')
+      day from (
+        make_date(parsed.parts[1]::integer, parsed.parts[2]::integer, 1)
+        + interval '1 month - 1 day'
+      )
     ) then null
     when parsed.parts[4]::integer not between 0 and 23 then null
     when parsed.parts[5]::integer not between 0 and 59 then null
@@ -50,7 +53,10 @@ set
     when parsed.parts[2]::integer not between 1 and 12 then 'unknown'
     when parsed.parts[3]::integer < 1 then 'unknown'
     when parsed.parts[3]::integer > extract(
-      day from (make_date(parsed.parts[1]::integer, parsed.parts[2]::integer, 1) + interval '1 month - 1 day')
+      day from (
+        make_date(parsed.parts[1]::integer, parsed.parts[2]::integer, 1)
+        + interval '1 month - 1 day'
+      )
     ) then 'unknown'
     when parsed.parts[4]::integer not between 0 and 23 then 'unknown'
     when parsed.parts[5]::integer not between 0 and 59 then 'unknown'
@@ -62,7 +68,7 @@ where target.id = parsed.id;
 with unique_matches as (
   select
     sales.id as sale_id,
-    min(imports.id) as import_id
+    (array_agg(imports.id order by imports.id))[1] as import_id
   from public.sales
   join public.imports
     on imports.import_type = 'sales'
@@ -120,7 +126,6 @@ create index sales_import_conflicts_sale_idx
   on public.sales_import_conflicts (existing_sale_id);
 
 alter table public.sales_import_conflicts enable row level security;
-
 revoke all on table public.sales_import_conflicts from anon;
 grant select, insert, update, delete on table public.sales_import_conflicts to authenticated;
 
@@ -154,9 +159,9 @@ begin
     listing_id uuid,
     sku_raw text,
     mlb_raw text,
-    source_row_number integer,
+    source_row_number integer not null,
     source_row_hash text,
-    record_type text,
+    record_type text not null,
     quantity integer,
     unit_price numeric(14, 2),
     gross_amount numeric(14, 2),
@@ -193,7 +198,8 @@ begin
   create temp table sales_import_batch_actions (
     import_id uuid not null,
     source_row_number integer not null,
-    action text not null
+    action text not null,
+    primary key (import_id, source_row_number)
   ) on commit drop;
 
   insert into sales_import_batch_rows
@@ -243,77 +249,102 @@ begin
     package_size integer
   );
 
+  -- Identidades repetidas dentro do mesmo arquivo/lote.
+  with ranked as (
+    select
+      rows.*,
+      row_number() over (
+        partition by sale_number, sku_raw, mlb_raw
+        order by source_row_number
+      ) as rn,
+      first_value(source_row_hash) over (
+        partition by sale_number, sku_raw, mlb_raw
+        order by source_row_number
+      ) as first_hash
+    from sales_import_batch_rows as rows
+    where record_type = 'sale_item'
+      and sale_number is not null
+      and sku_raw is not null
+      and mlb_raw is not null
+  )
   insert into public.sales_import_conflicts (
-    import_id, existing_import_id, sale_number, sku_raw, mlb_raw, record_type,
-    incoming_source_row_hash, existing_source_row_hash,
-    incoming_source_exported_at, existing_source_exported_at,
+    import_id, sale_number, sku_raw, mlb_raw, record_type,
+    incoming_source_row_hash, incoming_source_exported_at,
     conflict_type, details
   )
   select
-    current_row.import_id,
-    previous_row.import_id,
-    current_row.sale_number,
-    current_row.sku_raw,
-    current_row.mlb_raw,
-    current_row.record_type,
-    current_row.source_row_hash,
-    previous_row.source_row_hash,
-    current_row.source_exported_at,
-    previous_import.source_exported_at,
+    import_id, sale_number, sku_raw, mlb_raw, record_type,
+    source_row_hash, source_exported_at,
     'same_timestamp_different_content',
-    jsonb_build_object('reason', 'same identity repeated in the same batch')
-  from sales_import_batch_rows as current_row
-  join sales_import_batch_rows as previous_row
-    on previous_row.record_type = 'sale_item'
-   and previous_row.sale_number = current_row.sale_number
-   and previous_row.sku_raw = current_row.sku_raw
-   and previous_row.mlb_raw = current_row.mlb_raw
-   and previous_row.source_row_number < current_row.source_row_number
-   and previous_row.source_row_hash <> current_row.source_row_hash
-   and not exists (
-     select 1 from sales_import_batch_rows as earlier_row
-     where earlier_row.record_type = 'sale_item'
-       and earlier_row.sale_number = current_row.sale_number
-       and earlier_row.sku_raw = current_row.sku_raw
-       and earlier_row.mlb_raw = current_row.mlb_raw
-       and earlier_row.source_row_number < previous_row.source_row_number
-   )
-  left join public.imports as previous_import
-    on previous_import.id = previous_row.import_id
-  where current_row.record_type = 'sale_item'
+    jsonb_build_object('reason', 'same identity repeated in the same incoming file')
+  from ranked
+  where rn > 1
+    and source_row_hash is distinct from first_hash
   on conflict do nothing;
 
-  insert into sales_import_batch_actions
+  with ranked as (
+    select
+      rows.*,
+      row_number() over (
+        partition by sale_number, sku_raw, mlb_raw
+        order by source_row_number
+      ) as rn,
+      first_value(source_row_hash) over (
+        partition by sale_number, sku_raw, mlb_raw
+        order by source_row_number
+      ) as first_hash
+    from sales_import_batch_rows as rows
+    where record_type = 'sale_item'
+      and sale_number is not null
+      and sku_raw is not null
+      and mlb_raw is not null
+  )
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
   select
-    current_row.import_id,
-    current_row.source_row_number,
-    case
-      when previous_row.source_row_hash = current_row.source_row_hash then 'duplicate_exact'
+    import_id,
+    source_row_number,
+    case when source_row_hash is not distinct from first_hash
+      then 'duplicate_exact'
       else 'conflict'
     end
-  from sales_import_batch_rows as current_row
-  join sales_import_batch_rows as previous_row
-    on previous_row.record_type = 'sale_item'
-   and previous_row.sale_number = current_row.sale_number
-   and previous_row.sku_raw = current_row.sku_raw
-   and previous_row.mlb_raw = current_row.mlb_raw
-   and previous_row.source_row_number < current_row.source_row_number
-   and not exists (
-     select 1 from sales_import_batch_rows as earlier_row
-     where earlier_row.record_type = 'sale_item'
-       and earlier_row.sale_number = current_row.sale_number
-       and earlier_row.sku_raw = current_row.sku_raw
-       and earlier_row.mlb_raw = current_row.mlb_raw
-       and earlier_row.source_row_number < previous_row.source_row_number
-   )
-  where current_row.record_type = 'sale_item'
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = current_row.import_id
-        and actions.source_row_number = current_row.source_row_number
-    );
+  from ranked
+  where rn > 1
+  on conflict do nothing;
 
-  insert into sales_import_batch_actions
+  -- Linhas sem identidade natural segura.
+  insert into public.sales_import_conflicts (
+    import_id, sale_number, sku_raw, mlb_raw, record_type,
+    incoming_source_row_hash, incoming_source_exported_at,
+    conflict_type, details
+  )
+  select
+    rows.import_id,
+    rows.sale_number,
+    rows.sku_raw,
+    rows.mlb_raw,
+    rows.record_type,
+    rows.source_row_hash,
+    rows.source_exported_at,
+    'natural_identity_missing',
+    jsonb_build_object(
+      'missing_sale_number', rows.sale_number is null,
+      'missing_sku', rows.sku_raw is null,
+      'missing_mlb', rows.mlb_raw is null
+    )
+  from sales_import_batch_rows as rows
+  where rows.record_type = 'sale_item'
+    and (rows.sale_number is null or rows.sku_raw is null or rows.mlb_raw is null)
+  on conflict do nothing;
+
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
+  select rows.import_id, rows.source_row_number, 'conflict'
+  from sales_import_batch_rows as rows
+  where rows.record_type = 'sale_item'
+    and (rows.sale_number is null or rows.sku_raw is null or rows.mlb_raw is null)
+  on conflict do nothing;
+
+  -- Duplicados exatos já persistidos.
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
   select rows.import_id, rows.source_row_number, 'duplicate_exact'
   from sales_import_batch_rows as rows
   where exists (
@@ -323,14 +354,16 @@ begin
       and (
         rows.record_type <> 'sale_item'
         or (
-          existing.record_type = rows.record_type
+          existing.record_type = 'sale_item'
           and existing.sale_number = rows.sale_number
           and existing.sku_raw = rows.sku_raw
           and existing.mlb_raw = rows.mlb_raw
         )
       )
-  );
+  )
+  on conflict do nothing;
 
+  -- Hash idêntico pertencendo a outra identidade de venda.
   insert into public.sales_import_conflicts (
     import_id, existing_sale_id, existing_import_id,
     sale_number, sku_raw, mlb_raw, record_type,
@@ -349,30 +382,24 @@ begin
     rows.source_row_hash,
     existing.source_row_hash,
     rows.source_exported_at,
-    imports.source_exported_at,
+    existing_import.source_exported_at,
     'hash_collision',
     jsonb_build_object('reason', 'source_row_hash belongs to another sale identity')
   from sales_import_batch_rows as rows
   join public.sales as existing
     on existing.source_row_hash = rows.source_row_hash
-  left join public.imports
-    on imports.id = existing.import_id
+  left join public.imports as existing_import
+    on existing_import.id = existing.import_id
   where rows.record_type = 'sale_item'
-    and not exists (
-      select 1
-      from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
     and not (
-      existing.record_type = rows.record_type
+      existing.record_type = 'sale_item'
       and existing.sale_number = rows.sale_number
       and existing.sku_raw = rows.sku_raw
       and existing.mlb_raw = rows.mlb_raw
     )
   on conflict do nothing;
 
-  insert into sales_import_batch_actions
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
   select rows.import_id, rows.source_row_number, 'conflict'
   from sales_import_batch_rows as rows
   where rows.record_type = 'sale_item'
@@ -381,49 +408,15 @@ begin
       from public.sales as existing
       where existing.source_row_hash = rows.source_row_hash
         and not (
-          existing.record_type = rows.record_type
+          existing.record_type = 'sale_item'
           and existing.sale_number = rows.sale_number
           and existing.sku_raw = rows.sku_raw
           and existing.mlb_raw = rows.mlb_raw
         )
     )
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    );
-
-  insert into public.sales_import_conflicts (
-    import_id, sale_number, sku_raw, mlb_raw, record_type,
-    incoming_source_row_hash, incoming_source_exported_at,
-    conflict_type, details
-  )
-  select
-    rows.import_id, rows.sale_number, rows.sku_raw, rows.mlb_raw, rows.record_type,
-    rows.source_row_hash, rows.source_exported_at,
-    'natural_identity_missing',
-    jsonb_build_object('missing_sku', rows.sku_raw is null, 'missing_mlb', rows.mlb_raw is null)
-  from sales_import_batch_rows as rows
-  where rows.record_type = 'sale_item'
-    and (rows.sale_number is null or rows.sku_raw is null or rows.mlb_raw is null)
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
   on conflict do nothing;
 
-  insert into sales_import_batch_actions
-  select rows.import_id, rows.source_row_number, 'conflict'
-  from sales_import_batch_rows as rows
-  where rows.record_type = 'sale_item'
-    and (rows.sale_number is null or rows.sku_raw is null or rows.mlb_raw is null)
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    );
-
+  -- Mesma identidade, conteúdo diferente, mas sem versão temporal comparável.
   insert into public.sales_import_conflicts (
     import_id, existing_sale_id, existing_import_id,
     sale_number, sku_raw, mlb_raw, record_type,
@@ -442,36 +435,31 @@ begin
     rows.source_row_hash,
     existing.source_row_hash,
     rows.source_exported_at,
-    imports.source_exported_at,
+    existing_import.source_exported_at,
     case
-      when rows.source_exported_at is null or imports.source_exported_at is null
+      when rows.source_exported_at is null or existing_import.source_exported_at is null
         then 'missing_timestamp'
       else 'same_timestamp_different_content'
     end,
-    jsonb_build_object('existing_sale_id', existing.id)
+    jsonb_build_object('reason', 'version cannot be ordered safely')
   from sales_import_batch_rows as rows
   join public.sales as existing
     on existing.record_type = 'sale_item'
    and existing.sale_number = rows.sale_number
    and existing.sku_raw = rows.sku_raw
    and existing.mlb_raw = rows.mlb_raw
-  left join public.imports
-    on imports.id = existing.import_id
+  left join public.imports as existing_import
+    on existing_import.id = existing.import_id
   where rows.record_type = 'sale_item'
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
-    and rows.source_row_hash <> existing.source_row_hash
+    and rows.source_row_hash is distinct from existing.source_row_hash
     and (
       rows.source_exported_at is null
-      or imports.source_exported_at is null
-      or rows.source_exported_at = imports.source_exported_at
+      or existing_import.source_exported_at is null
+      or rows.source_exported_at = existing_import.source_exported_at
     )
   on conflict do nothing;
 
-  insert into sales_import_batch_actions
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
   select rows.import_id, rows.source_row_number, 'conflict'
   from sales_import_batch_rows as rows
   join public.sales as existing
@@ -479,21 +467,36 @@ begin
    and existing.sale_number = rows.sale_number
    and existing.sku_raw = rows.sku_raw
    and existing.mlb_raw = rows.mlb_raw
-  left join public.imports
-    on imports.id = existing.import_id
+  left join public.imports as existing_import
+    on existing_import.id = existing.import_id
   where rows.record_type = 'sale_item'
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
-    and rows.source_row_hash <> existing.source_row_hash
+    and rows.source_row_hash is distinct from existing.source_row_hash
     and (
       rows.source_exported_at is null
-      or imports.source_exported_at is null
-      or rows.source_exported_at = imports.source_exported_at
-    );
+      or existing_import.source_exported_at is null
+      or rows.source_exported_at = existing_import.source_exported_at
+    )
+  on conflict do nothing;
 
+  -- Versões antigas são ignoradas sem alterar o estado mais novo.
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
+  select rows.import_id, rows.source_row_number, 'old_ignored'
+  from sales_import_batch_rows as rows
+  join public.sales as existing
+    on existing.record_type = 'sale_item'
+   and existing.sale_number = rows.sale_number
+   and existing.sku_raw = rows.sku_raw
+   and existing.mlb_raw = rows.mlb_raw
+  join public.imports as existing_import
+    on existing_import.id = existing.import_id
+  where rows.record_type = 'sale_item'
+    and rows.source_row_hash is distinct from existing.source_row_hash
+    and rows.source_exported_at is not null
+    and existing_import.source_exported_at is not null
+    and rows.source_exported_at < existing_import.source_exported_at
+  on conflict do nothing;
+
+  -- Versões mais novas substituem apenas os campos mutáveis/proveniência.
   with updated as (
     update public.sales as existing
     set
@@ -507,7 +510,7 @@ begin
       gross_amount = rows.gross_amount,
       net_amount = rows.net_amount,
       fees = rows.fees,
-      cancelled = rows.cancelled,
+      cancelled = coalesce(rows.cancelled, false),
       ads_sale = rows.ads_sale,
       source_file = rows.source_file,
       sale_status = rows.sale_status,
@@ -535,54 +538,37 @@ begin
       package_size = rows.package_size,
       import_id = rows.import_id
     from sales_import_batch_rows as rows
-    join public.imports
-      on imports.id = existing.import_id
+    join public.imports as existing_import
+      on existing_import.id = existing.import_id
     where rows.record_type = 'sale_item'
       and existing.record_type = 'sale_item'
       and existing.sale_number = rows.sale_number
       and existing.sku_raw = rows.sku_raw
       and existing.mlb_raw = rows.mlb_raw
-      and rows.source_row_hash <> existing.source_row_hash
+      and rows.source_row_hash is distinct from existing.source_row_hash
       and rows.source_exported_at is not null
-      and imports.source_exported_at is not null
-      and rows.source_exported_at > imports.source_exported_at
+      and existing_import.source_exported_at is not null
+      and rows.source_exported_at > existing_import.source_exported_at
       and not exists (
-        select 1 from sales_import_batch_actions as actions
+        select 1
+        from sales_import_batch_actions as actions
         where actions.import_id = rows.import_id
           and actions.source_row_number = rows.source_row_number
       )
       and not exists (
-        select 1 from public.sales as hash_owner
+        select 1
+        from public.sales as hash_owner
         where hash_owner.source_row_hash = rows.source_row_hash
           and hash_owner.id <> existing.id
       )
-    returning import_id, source_row_number
+    returning rows.import_id, rows.source_row_number
   )
-  insert into sales_import_batch_actions
-  select updated.import_id, updated.source_row_number, 'updated'
-  from updated;
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
+  select import_id, source_row_number, 'updated'
+  from updated
+  on conflict do nothing;
 
-  insert into sales_import_batch_actions
-  select rows.import_id, rows.source_row_number, 'old_ignored'
-  from sales_import_batch_rows as rows
-  join public.sales as existing
-    on existing.record_type = 'sale_item'
-   and existing.sale_number = rows.sale_number
-   and existing.sku_raw = rows.sku_raw
-   and existing.mlb_raw = rows.mlb_raw
-  join public.imports
-    on imports.id = existing.import_id
-  where rows.record_type = 'sale_item'
-    and rows.source_row_hash <> existing.source_row_hash
-    and rows.source_exported_at is not null
-    and imports.source_exported_at is not null
-    and rows.source_exported_at < imports.source_exported_at
-    and not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    );
-
+  -- Novos itens de venda com identidade segura.
   with inserted as (
     insert into public.sales (
       sale_number, sale_date, product_id, listing_id, sku_raw, mlb_raw,
@@ -597,43 +583,80 @@ begin
       package_parent_sale_number, package_size, import_id
     )
     select
-      rows.sale_number, rows.sale_date, rows.product_id, rows.listing_id, rows.sku_raw, rows.mlb_raw,
-      rows.source_row_number, rows.source_row_hash, rows.record_type, rows.quantity, rows.unit_price,
-      rows.gross_amount, rows.net_amount, rows.fees, rows.cancelled, rows.ads_sale, rows.source_file,
-      rows.sale_status, rows.status_description, rows.multi_product_package, rows.belongs_to_kit,
-      rows.product_revenue, rows.additional_price_revenue, rows.installment_fee, rows.sale_fee_tax,
-      rows.shipping_revenue, rows.shipping_fee, rows.exchange_shipping_cost,
-      rows.declared_dimensions_shipping_cost, rows.dimensions_difference_cost,
-      rows.discounts_bonuses, rows.cancellations_refunds, rows.billing_month, rows.official_store,
-      rows.listing_title, rows.variation, rows.listing_type_raw, rows.shipping_method,
-      rows.package_parent_sale_number, rows.package_size, rows.import_id
+      rows.sale_number,
+      rows.sale_date,
+      rows.product_id,
+      rows.listing_id,
+      rows.sku_raw,
+      rows.mlb_raw,
+      rows.source_row_number,
+      rows.source_row_hash,
+      rows.record_type,
+      rows.quantity,
+      rows.unit_price,
+      rows.gross_amount,
+      rows.net_amount,
+      rows.fees,
+      coalesce(rows.cancelled, false),
+      rows.ads_sale,
+      rows.source_file,
+      rows.sale_status,
+      rows.status_description,
+      rows.multi_product_package,
+      rows.belongs_to_kit,
+      rows.product_revenue,
+      rows.additional_price_revenue,
+      rows.installment_fee,
+      rows.sale_fee_tax,
+      rows.shipping_revenue,
+      rows.shipping_fee,
+      rows.exchange_shipping_cost,
+      rows.declared_dimensions_shipping_cost,
+      rows.dimensions_difference_cost,
+      rows.discounts_bonuses,
+      rows.cancellations_refunds,
+      rows.billing_month,
+      rows.official_store,
+      rows.listing_title,
+      rows.variation,
+      rows.listing_type_raw,
+      rows.shipping_method,
+      rows.package_parent_sale_number,
+      rows.package_size,
+      rows.import_id
     from sales_import_batch_rows as rows
-    where not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
-      and rows.record_type = 'sale_item'
+    where rows.record_type = 'sale_item'
       and rows.sale_number is not null
+      and rows.sale_date is not null
       and rows.sku_raw is not null
       and rows.mlb_raw is not null
       and not exists (
-        select 1 from public.sales as existing
-        where existing.record_type = rows.record_type
+        select 1
+        from sales_import_batch_actions as actions
+        where actions.import_id = rows.import_id
+          and actions.source_row_number = rows.source_row_number
+      )
+      and not exists (
+        select 1
+        from public.sales as existing
+        where existing.record_type = 'sale_item'
           and existing.sale_number = rows.sale_number
           and existing.sku_raw = rows.sku_raw
           and existing.mlb_raw = rows.mlb_raw
       )
       and not exists (
-        select 1 from public.sales as hash_owner
+        select 1
+        from public.sales as hash_owner
         where hash_owner.source_row_hash = rows.source_row_hash
       )
-    returning source_row_number, import_id
+    returning import_id, source_row_number
   )
-  insert into sales_import_batch_actions
-  select inserted.import_id, inserted.source_row_number, 'inserted'
-  from inserted;
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
+  select import_id, source_row_number, 'inserted'
+  from inserted
+  on conflict do nothing;
 
+  -- Resumos de pacote/troca continuam idempotentes apenas pelo hash exato.
   with inserted as (
     insert into public.sales (
       sale_number, sale_date, product_id, listing_id, sku_raw, mlb_raw,
@@ -648,32 +671,68 @@ begin
       package_parent_sale_number, package_size, import_id
     )
     select
-      rows.sale_number, rows.sale_date, rows.product_id, rows.listing_id, rows.sku_raw, rows.mlb_raw,
-      rows.source_row_number, rows.source_row_hash, rows.record_type, rows.quantity, rows.unit_price,
-      rows.gross_amount, rows.net_amount, rows.fees, rows.cancelled, rows.ads_sale, rows.source_file,
-      rows.sale_status, rows.status_description, rows.multi_product_package, rows.belongs_to_kit,
-      rows.product_revenue, rows.additional_price_revenue, rows.installment_fee, rows.sale_fee_tax,
-      rows.shipping_revenue, rows.shipping_fee, rows.exchange_shipping_cost,
-      rows.declared_dimensions_shipping_cost, rows.dimensions_difference_cost,
-      rows.discounts_bonuses, rows.cancellations_refunds, rows.billing_month, rows.official_store,
-      rows.listing_title, rows.variation, rows.listing_type_raw, rows.shipping_method,
-      rows.package_parent_sale_number, rows.package_size, rows.import_id
+      rows.sale_number,
+      rows.sale_date,
+      rows.product_id,
+      rows.listing_id,
+      rows.sku_raw,
+      rows.mlb_raw,
+      rows.source_row_number,
+      rows.source_row_hash,
+      rows.record_type,
+      rows.quantity,
+      rows.unit_price,
+      rows.gross_amount,
+      rows.net_amount,
+      rows.fees,
+      coalesce(rows.cancelled, false),
+      rows.ads_sale,
+      rows.source_file,
+      rows.sale_status,
+      rows.status_description,
+      rows.multi_product_package,
+      rows.belongs_to_kit,
+      rows.product_revenue,
+      rows.additional_price_revenue,
+      rows.installment_fee,
+      rows.sale_fee_tax,
+      rows.shipping_revenue,
+      rows.shipping_fee,
+      rows.exchange_shipping_cost,
+      rows.declared_dimensions_shipping_cost,
+      rows.dimensions_difference_cost,
+      rows.discounts_bonuses,
+      rows.cancellations_refunds,
+      rows.billing_month,
+      rows.official_store,
+      rows.listing_title,
+      rows.variation,
+      rows.listing_type_raw,
+      rows.shipping_method,
+      rows.package_parent_sale_number,
+      rows.package_size,
+      rows.import_id
     from sales_import_batch_rows as rows
-    where not exists (
-      select 1 from sales_import_batch_actions as actions
-      where actions.import_id = rows.import_id
-        and actions.source_row_number = rows.source_row_number
-    )
-      and rows.record_type <> 'sale_item'
+    where rows.record_type <> 'sale_item'
+      and rows.sale_number is not null
+      and rows.sale_date is not null
       and not exists (
-        select 1 from public.sales as existing
+        select 1
+        from sales_import_batch_actions as actions
+        where actions.import_id = rows.import_id
+          and actions.source_row_number = rows.source_row_number
+      )
+      and not exists (
+        select 1
+        from public.sales as existing
         where existing.source_row_hash = rows.source_row_hash
       )
-    returning source_row_number, import_id
+    returning import_id, source_row_number
   )
-  insert into sales_import_batch_actions
-  select inserted.import_id, inserted.source_row_number, 'inserted'
-  from inserted;
+  insert into sales_import_batch_actions (import_id, source_row_number, action)
+  select import_id, source_row_number, 'inserted'
+  from inserted
+  on conflict do nothing;
 
   select jsonb_build_object(
     'totals', jsonb_build_object(
@@ -686,13 +745,15 @@ begin
     'by_import', coalesce((
       select jsonb_object_agg(grouped.import_id::text, grouped.stats)
       from (
-        select import_id, jsonb_build_object(
-          'inserted', count(*) filter (where action = 'inserted'),
-          'updated', count(*) filter (where action = 'updated'),
-          'duplicate_exact', count(*) filter (where action = 'duplicate_exact'),
-          'old_ignored', count(*) filter (where action = 'old_ignored'),
-          'conflicts', count(*) filter (where action = 'conflict')
-        ) as stats
+        select
+          import_id,
+          jsonb_build_object(
+            'inserted', count(*) filter (where action = 'inserted'),
+            'updated', count(*) filter (where action = 'updated'),
+            'duplicate_exact', count(*) filter (where action = 'duplicate_exact'),
+            'old_ignored', count(*) filter (where action = 'old_ignored'),
+            'conflicts', count(*) filter (where action = 'conflict')
+          ) as stats
         from sales_import_batch_actions
         group by import_id
       ) as grouped
