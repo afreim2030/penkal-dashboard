@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { ArrowRight, Boxes, PackageCheck, ShoppingCart, Truck, Warehouse } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +52,10 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Unidades no último dia</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><ShoppingCart className="size-5" />{integer.format(latest.units)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <ShoppingCart className="size-5" />
+              {integer.format(latest.units)}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-xs">Dia completo {formatDate(latest.date)}</CardContent>
         </Card>
@@ -60,28 +64,43 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
             <CardDescription>Faturamento do dia</CardDescription>
             <CardTitle className="text-2xl tabular-nums">{currency.format(latest.revenue)}</CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{integer.format(latest.orders)} pedidos válidos</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {integer.format(latest.orders)} pedidos válidos
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Estoque FULL</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><Warehouse className="size-5" />{integer.format(data.fullStock)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <Warehouse className="size-5" />
+              {integer.format(data.fullStock)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{integer.format(data.products.summary.withFullStock)} SKUs com saldo</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {integer.format(data.products.summary.withFullStock)} SKUs com saldo
+          </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Afetando tempo de estoque</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><Boxes className="size-5" />{integer.format(data.products.summary.stockTimeAffectedUnits)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <Boxes className="size-5" />
+              {integer.format(data.products.summary.stockTimeAffectedUnits)}
+            </CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-xs">Unidades no snapshot FULL mais recente</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Recebido pelo FULL</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums"><PackageCheck className="size-5" />{integer.format(data.inbounds.summary.processed)}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
+              <PackageCheck className="size-5" />
+              {integer.format(data.inbounds.summary.processed)}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">{integer.format(data.inbounds.summary.inbounds)} envios no histórico</CardContent>
+          <CardContent className="text-muted-foreground text-xs">
+            {integer.format(data.inbounds.summary.inbounds)} envios no histórico
+          </CardContent>
         </Card>
       </div>
 
@@ -97,7 +116,9 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
                 <div>
                   <p className="text-muted-foreground text-xs">Unidades</p>
                   <p className="text-3xl font-semibold tabular-nums">{integer.format(last7.units)}</p>
-                  <p className="text-muted-foreground text-xs">Média {decimal.format(last7.units / last7.days)} por dia</p>
+                  <p className="text-muted-foreground text-xs">
+                    Média {decimal.format(last7.units / last7.days)} por dia
+                  </p>
                 </div>
                 <div>
                   <p className="text-muted-foreground text-xs">Faturamento</p>
@@ -133,7 +154,9 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
                 {topSkus.map((row) => (
                   <TableRow key={row.sku}>
                     <TableCell className="font-medium">{row.sku}</TableCell>
-                    <TableCell className="max-w-[380px] truncate" title={row.productName ?? undefined}>{row.productName ?? "Produto sem nome vinculado"}</TableCell>
+                    <TableCell className="max-w-[380px] truncate" title={row.productName ?? undefined}>
+                      {row.productName ?? "Produto sem nome vinculado"}
+                    </TableCell>
                     <TableCell className="text-right font-medium tabular-nums">{integer.format(row.units)}</TableCell>
                     <TableCell className="text-right tabular-nums">{currency.format(row.revenue)}</TableCell>
                   </TableRow>
@@ -164,9 +187,13 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
                 {data.affectedProducts.map((row) => (
                   <TableRow key={row.sku}>
                     <TableCell className="font-medium">{row.sku}</TableCell>
-                    <TableCell className="max-w-[320px] truncate" title={row.name}>{row.name}</TableCell>
+                    <TableCell className="max-w-[320px] truncate" title={row.name}>
+                      {row.name}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.fullStock)}</TableCell>
-                    <TableCell className="text-right"><Badge variant="outline">{integer.format(row.stockTimeAffected)}</Badge></TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="outline">{integer.format(row.stockTimeAffected)}</Badge>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -195,8 +222,17 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
                     <TableCell className="font-medium tabular-nums">{row.inboundId}</TableCell>
                     <TableCell>{formatDate(row.receivedAt)}</TableCell>
                     <TableCell className="text-right tabular-nums">{integer.format(row.processed)}</TableCell>
-                    <TableCell className={row.difference < 0 ? "text-right text-red-600 tabular-nums dark:text-red-400" : row.difference > 0 ? "text-right text-emerald-600 tabular-nums dark:text-emerald-400" : "text-right text-muted-foreground tabular-nums"}>
-                      {row.difference > 0 ? "+" : ""}{integer.format(row.difference)}
+                    <TableCell
+                      className={
+                        row.difference < 0
+                          ? "text-right text-red-600 tabular-nums dark:text-red-400"
+                          : row.difference > 0
+                            ? "text-right text-emerald-600 tabular-nums dark:text-emerald-400"
+                            : "text-right text-muted-foreground tabular-nums"
+                      }
+                    >
+                      {row.difference > 0 ? "+" : ""}
+                      {integer.format(row.difference)}
                     </TableCell>
                   </TableRow>
                 ))}

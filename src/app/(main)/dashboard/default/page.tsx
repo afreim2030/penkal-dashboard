@@ -13,7 +13,9 @@ export default async function Page() {
         <Alert>
           <AlertCircle />
           <AlertTitle>Dados insuficientes</AlertTitle>
-          <AlertDescription>Importe os relatórios principais do Mercado Livre para montar o dashboard.</AlertDescription>
+          <AlertDescription>
+            Importe os relatórios principais do Mercado Livre para montar o dashboard.
+          </AlertDescription>
         </Alert>
       );
     }
