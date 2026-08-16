@@ -102,8 +102,6 @@ export const sidebarItems: NavGroup[] = [
         title: "IA",
         url: "/dashboard/ia",
         icon: Sparkles,
-        badge: "soon",
-        disabled: true,
       },
     ],
   },
