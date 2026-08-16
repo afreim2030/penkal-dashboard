@@ -10,37 +10,89 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { createClient } from "@/lib/supabase/client";
 
 import type { SalesImportResult } from "../_lib/sales-import-types";
+
+const IMPORT_BUCKET = "import-staging";
+const MAX_FILES = 20;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+const XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+interface StagedSaleFile {
+  path: string;
+  fileName: string;
+}
 
 export function ImportSalesCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState("Processando vendas...");
   const [result, setResult] = useState<SalesImportResult | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
 
   async function handleImport() {
     if (!files.length || isProcessing) return;
-    setIsProcessing(true);
     setResult(null);
     setRequestError(null);
-    const body = new FormData();
-    files.forEach((file) => {
-      body.append("files", file);
-    });
+
+    if (files.length > MAX_FILES) {
+      setRequestError(`Selecione no máximo ${MAX_FILES} arquivos por lote.`);
+      return;
+    }
+    const invalidFile = files.find(
+      (file) =>
+        !file.name.toLocaleLowerCase("pt-BR").endsWith(".xlsx") || file.size === 0 || file.size > MAX_FILE_SIZE,
+    );
+    if (invalidFile) {
+      setRequestError(`O arquivo ${invalidFile.name} deve ser XLSX, ter até 50 MB e não pode estar vazio.`);
+      return;
+    }
+
+    setIsProcessing(true);
+    const supabase = createClient();
+    const staged: StagedSaleFile[] = [];
 
     try {
-      const response = await fetch("/api/importacoes/sales", { method: "POST", body });
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error("Sessão inválida. Entre novamente para importar.");
+
+      for (let index = 0; index < files.length; index += 1) {
+        const file = files[index];
+        setProcessingMessage(`Enviando arquivo ${index + 1} de ${files.length}...`);
+        const path = `${user.id}/${crypto.randomUUID()}.xlsx`;
+        const { error: uploadError } = await supabase.storage.from(IMPORT_BUCKET).upload(path, file, {
+          cacheControl: "0",
+          contentType: file.type || XLSX_CONTENT_TYPE,
+          upsert: false,
+        });
+        if (uploadError) throw new Error(`Não foi possível enviar o arquivo ${file.name}.`);
+        staged.push({ path, fileName: file.name });
+      }
+
+      setProcessingMessage("Processando vendas...");
+      const response = await fetch("/api/importacoes/sales", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ files: staged }),
+      });
       const payload = (await response.json()) as SalesImportResult | { message?: string };
       if (!response.ok) {
         setRequestError(payload.message ?? "Não foi possível importar os arquivos.");
         return;
       }
       setResult(payload as SalesImportResult);
-    } catch {
-      setRequestError("Não foi possível enviar os arquivos. Tente novamente.");
+    } catch (error) {
+      setRequestError(error instanceof Error ? error.message : "Não foi possível enviar os arquivos. Tente novamente.");
     } finally {
+      if (staged.length) {
+        await supabase.storage.from(IMPORT_BUCKET).remove(staged.map((file) => file.path));
+      }
+      setProcessingMessage("Processando vendas...");
       setIsProcessing(false);
     }
   }
@@ -89,15 +141,17 @@ export function ImportSalesCard() {
                     (files.length === 1 ? "" : "s")}
               </p>
             </div>
-            <FieldDescription>Somente .xlsx, com até 10 MB por arquivo.</FieldDescription>
+            <FieldDescription>
+              Somente .xlsx, até 50 MB por arquivo e no máximo 20 arquivos. O envio temporário é privado e removido após o processamento.
+            </FieldDescription>
           </Field>
         </FieldGroup>
 
         {isProcessing && (
           <Alert>
             <Spinner />
-            <AlertTitle>Processando vendas...</AlertTitle>
-            <AlertDescription>Isso pode levar alguns instantes.</AlertDescription>
+            <AlertTitle>{processingMessage}</AlertTitle>
+            <AlertDescription>Arquivos grandes podem levar alguns instantes.</AlertDescription>
           </Alert>
         )}
         {requestError && (
@@ -108,9 +162,9 @@ export function ImportSalesCard() {
           </Alert>
         )}
         {result && (
-          <Alert>
-            <CheckCircle2 />
-            <AlertTitle>Importação concluída</AlertTitle>
+          <Alert variant={result.totals.errors ? "destructive" : undefined}>
+            {result.totals.errors ? <AlertCircle /> : <CheckCircle2 />}
+            <AlertTitle>{result.totals.errors ? "Importação concluída com pendências" : "Importação concluída"}</AlertTitle>
             <AlertDescription>
               <dl className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
                 <div>Linhas: {result.totals.rows}</div>
