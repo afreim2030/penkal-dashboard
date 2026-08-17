@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 
 const PROBLEM_LIMIT = 10;
 const MAX_FILES = 20;
+const SALES_RPC_BATCH_SIZE = 500;
 
 type ImportStatus = "completed" | "completed_with_errors" | "failed" | "processing";
 
@@ -42,6 +43,24 @@ interface BatchActionCounts {
   duplicate_exact: number;
   old_ignored: number;
   conflicts: number;
+}
+
+function emptyBatchActions(): BatchActionCounts {
+  return {
+    inserted: 0,
+    updated: 0,
+    duplicate_exact: 0,
+    old_ignored: 0,
+    conflicts: 0,
+  };
+}
+
+function addBatchActions(target: BatchActionCounts, source: BatchActionCounts): void {
+  target.inserted += source.inserted;
+  target.updated += source.updated;
+  target.duplicate_exact += source.duplicate_exact;
+  target.old_ignored += source.old_ignored;
+  target.conflicts += source.conflicts;
 }
 
 export function salesFileHash(buffer: Buffer): string {
@@ -368,18 +387,26 @@ export async function importSales(input: ImportSalesInput): Promise<SalesImportR
           file.sourceExportedAt,
         ),
       );
+      const actions = emptyBatchActions();
       try {
-        const { data: batchResult, error: batchError } = await input.supabase.rpc("process_sales_import_batch", {
-          p_rows: batchRows,
-        });
-        if (batchError) throw new Error("Não foi possível processar o lote histórico de vendas.");
-        const actions = ((batchResult?.by_import ?? {}) as Record<string, BatchActionCounts>)[file.importRecord.id] ?? {
-          inserted: 0,
-          updated: 0,
-          duplicate_exact: 0,
-          old_ignored: 0,
-          conflicts: 0,
-        };
+        const totalBatches = Math.max(1, Math.ceil(batchRows.length / SALES_RPC_BATCH_SIZE));
+        for (let offset = 0; offset < batchRows.length; offset += SALES_RPC_BATCH_SIZE) {
+          const chunk = batchRows.slice(offset, offset + SALES_RPC_BATCH_SIZE);
+          const batchNumber = Math.floor(offset / SALES_RPC_BATCH_SIZE) + 1;
+          const { data: batchResult, error: batchError } = await input.supabase.rpc("process_sales_import_batch", {
+            p_rows: chunk,
+          });
+          if (batchError) {
+            throw new Error(
+              `Não foi possível processar o bloco ${batchNumber} de ${totalBatches} do arquivo ${file.input.fileName}.`,
+            );
+          }
+          const chunkActions =
+            ((batchResult?.by_import ?? {}) as Record<string, BatchActionCounts>)[file.importRecord.id] ??
+            emptyBatchActions();
+          addBatchActions(actions, chunkActions);
+        }
+
         const errors = file.problems.length + actions.conflicts;
         await input.supabase
           .from("imports")
@@ -426,11 +453,11 @@ export async function importSales(input: ImportSalesInput): Promise<SalesImportR
           saleItems: file.validRows.filter((row) => row.recordType === "sale_item").length,
           packageSummaries: file.validRows.filter((row) => row.recordType === "package_summary").length,
           exchangeSummaries: file.validRows.filter((row) => row.recordType === "exchange_summary").length,
-          insertedRows: 0,
-          updatedRows: 0,
-          exactDuplicates: 0,
-          oldIgnoredRows: 0,
-          conflicts: 0,
+          insertedRows: actions.inserted,
+          updatedRows: actions.updated,
+          exactDuplicates: actions.duplicate_exact,
+          oldIgnoredRows: actions.old_ignored,
+          conflicts: actions.conflicts,
           errors: file.problems.length + 1,
           duplicate: false,
           problems: [...file.problems, { line: 0, message }].slice(0, PROBLEM_LIMIT),
