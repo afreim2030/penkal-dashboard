@@ -24,6 +24,18 @@ interface StagedSaleFile {
   fileName: string;
 }
 
+function unknownErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    const serialized = JSON.stringify(error);
+    if (serialized && serialized !== "{}") return serialized;
+  } catch {
+    // Ignora e usa a mensagem padrão abaixo.
+  }
+  return "Falha inesperada antes de concluir o envio dos arquivos.";
+}
+
 export function ImportSalesCard() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
@@ -49,6 +61,17 @@ export function ImportSalesCard() {
       return;
     }
 
+    for (const file of files) {
+      try {
+        await file.slice(0, Math.min(1, file.size)).arrayBuffer();
+      } catch {
+        setRequestError(
+          `O navegador não conseguiu ler o arquivo ${file.name}. Extraia os arquivos do ZIP para uma pasta normal do computador e selecione-os novamente.`,
+        );
+        return;
+      }
+    }
+
     setIsProcessing(true);
     const supabase = createClient();
     const staged: StagedSaleFile[] = [];
@@ -69,7 +92,9 @@ export function ImportSalesCard() {
           contentType: file.type || XLSX_CONTENT_TYPE,
           upsert: false,
         });
-        if (uploadError) throw new Error(`Não foi possível enviar o arquivo ${file.name}.`);
+        if (uploadError) {
+          throw new Error(`Não foi possível enviar o arquivo ${file.name}: ${uploadError.message}`);
+        }
         staged.push({ path, fileName: file.name });
       }
 
@@ -86,7 +111,7 @@ export function ImportSalesCard() {
       }
       setResult(payload as SalesImportResult);
     } catch (error) {
-      setRequestError(error instanceof Error ? error.message : "Não foi possível enviar os arquivos. Tente novamente.");
+      setRequestError(unknownErrorMessage(error));
     } finally {
       if (staged.length) {
         await supabase.storage.from(IMPORT_BUCKET).remove(staged.map((file) => file.path));
