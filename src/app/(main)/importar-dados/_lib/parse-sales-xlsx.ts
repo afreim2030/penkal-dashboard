@@ -367,6 +367,7 @@ export function parseSalesWorkbook(workbook: WorkBook): ParsedSalesFile {
       problems.push({ line, message: "Unidades inválidas para item de venda" });
     }
     if (
+      type === "sale_item" &&
       explicitGross === null &&
       productRevenue === null &&
       netAmount === null &&
