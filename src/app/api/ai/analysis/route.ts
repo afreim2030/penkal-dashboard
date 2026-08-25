@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 
 import { loadAlertsDashboard } from "@/app/(main)/dashboard/alertas/_lib/load-alerts-dashboard";
-import { loadAdsDashboard } from "@/app/(main)/dashboard/publicidade/_lib/load-ads-dashboard";
 import { loadMainDashboard } from "@/app/(main)/dashboard/default/_lib/load-main-dashboard";
+import { loadAdsDashboard } from "@/app/(main)/dashboard/publicidade/_lib/load-ads-dashboard";
 import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
@@ -118,9 +118,16 @@ export async function POST(request: Request) {
     // Corpo vazio usa a pergunta padrão.
   }
 
-  const [dashboard, alerts, ads] = await Promise.all([loadMainDashboard(), loadAlertsDashboard(), loadAdsDashboard()]);
+  const [dashboard, alerts, ads] = await Promise.all([
+    loadMainDashboard(),
+    loadAlertsDashboard(),
+    loadAdsDashboard(),
+  ]);
   if (!dashboard) {
-    return NextResponse.json({ error: "Ainda não há dados suficientes para montar o contexto da IA." }, { status: 422 });
+    return NextResponse.json(
+      { error: "Ainda não há dados suficientes para montar o contexto da IA." },
+      { status: 422 },
+    );
   }
 
   const context = compactContext(dashboard, alerts, ads);
@@ -144,7 +151,7 @@ export async function POST(request: Request) {
   if (!response.ok) {
     const errorPayload = payload as { error?: { message?: string } };
     return NextResponse.json(
-      { error: errorPayload.error?.message || "A OpenAI não conseguiu gerar a análise." },
+      { error: errorPayload.error?.message ?? "A OpenAI não conseguiu gerar a análise." },
       { status: response.status },
     );
   }

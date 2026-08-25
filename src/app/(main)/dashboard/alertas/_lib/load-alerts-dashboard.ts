@@ -32,6 +32,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     supabase
       .from("sales_import_conflicts")
       .select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at")
+      .is("resolved_at", null)
       .order("created_at", { ascending: false })
       .limit(20),
   ]);

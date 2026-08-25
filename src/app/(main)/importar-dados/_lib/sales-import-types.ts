@@ -3,12 +3,14 @@ export interface SalesImportProblem {
   message: string;
 }
 
+export type SalesExportedAtSource = "filename" | "report_header" | "user_confirmed" | "unknown";
+
 export interface SalesImportFileResult {
   fileName: string;
   periodStart: string | null;
   periodEnd: string | null;
   sourceExportedAt: string | null;
-  sourceExportedAtSource: "filename" | "unknown";
+  sourceExportedAtSource: SalesExportedAtSource;
   rows: number;
   saleItems: number;
   packageSummaries: number;

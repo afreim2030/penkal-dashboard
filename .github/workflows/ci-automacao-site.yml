@@ -8,7 +8,6 @@ on:
 permissions:
   contents: read
 
-# Valida o estado atual da branch depois das correções automáticas de estilo.
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -31,5 +30,29 @@ jobs:
       - name: TypeScript
         run: npx tsc --noEmit
 
-      - name: Historico de vendas
+      - name: Valida importador de anuncios
+        run: npm run validate:importer
+
+      - name: Valida importador de vendas
+        run: npm run validate:sales-importer
+
+      - name: Valida historico de vendas
         run: npm run validate:sales-history-import
+
+      - name: Valida importador FULL
+        run: npm run validate:full-importer
+
+      - name: Valida envios FULL
+        run: npm run validate:inbounds-importer
+
+      - name: Valida FIFO FULL
+        run: npm run validate:full-fifo
+
+      - name: Valida giro de estoque
+        run: npm run validate:stock-velocity
+
+      - name: Valida prioridade de estoque
+        run: npm run validate:stock-priority
+
+      - name: Build Next.js
+        run: npm run build

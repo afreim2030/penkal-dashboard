@@ -1,7 +1,8 @@
 "use client";
 
-import { Bot, Loader2, Send, Sparkles } from "lucide-react";
 import { useState } from "react";
+
+import { Bot, Loader2, Send, Sparkles } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -34,7 +35,7 @@ export function AiDashboard({ enabled }: { enabled: boolean }) {
         body: JSON.stringify({ question: prompt }),
       });
       const payload = (await response.json()) as { answer?: string; error?: string };
-      if (!response.ok) throw new Error(payload.error || "Não foi possível gerar a análise.");
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível gerar a análise.");
       setAnswer(payload.answer ?? "A análise terminou sem texto.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível gerar a análise.");
@@ -72,7 +73,8 @@ export function AiDashboard({ enabled }: { enabled: boolean }) {
               <Bot className="size-5" /> Pergunte ao analista
             </CardTitle>
             <CardDescription>
-              A IA recebe um resumo estruturado da operação. Dados ausentes continuam ausentes; nenhum SKU ou estoque é inventado.
+              A IA recebe um resumo estruturado da operação. Dados ausentes continuam ausentes; nenhum SKU ou estoque é
+              inventado.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
