@@ -118,11 +118,7 @@ export async function POST(request: Request) {
     // Corpo vazio usa a pergunta padrão.
   }
 
-  const [dashboard, alerts, ads] = await Promise.all([
-    loadMainDashboard(),
-    loadAlertsDashboard(),
-    loadAdsDashboard(),
-  ]);
+  const [dashboard, alerts, ads] = await Promise.all([loadMainDashboard(), loadAlertsDashboard(), loadAdsDashboard()]);
   if (!dashboard) {
     return NextResponse.json(
       { error: "Ainda não há dados suficientes para montar o contexto da IA." },
