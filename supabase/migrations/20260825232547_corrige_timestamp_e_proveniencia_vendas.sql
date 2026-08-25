@@ -1,0 +1,2 @@
+-- Migração histórica aplicada diretamente no projeto Supabase.
+-- O estado final desta correção é consolidado em 20260825233057_corrige_ambiguidade_identidade_parcial_vendas.sql.
