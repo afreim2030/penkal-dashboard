@@ -32,7 +32,9 @@ export default function LoginV1() {
         <div className="w-full max-w-sm space-y-8">
           <div className="space-y-2">
             <p className="font-semibold text-3xl tracking-tight">Entrar</p>
-            <p className="text-muted-foreground text-sm">Use a conta administrativa autorizada para acessar o painel.</p>
+            <p className="text-muted-foreground text-sm">
+              Use a conta administrativa autorizada para acessar o painel.
+            </p>
           </div>
           <LoginForm />
         </div>
