@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
-import { Command } from "lucide-react";
-import { useShallow } from "zustand/react/shallow";
+import { BookOpenCheck, LogOut } from "lucide-react";
 
 import {
   Sidebar,
@@ -14,47 +14,54 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { APP_CONFIG } from "@/config/app-config";
-import { rootUser } from "@/data/users";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
-import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
+import { createClient } from "@/lib/supabase/client";
 
 import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
-import { SupportCard } from "./support-card";
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { sidebarVariant, sidebarCollapsible, isSynced } = usePreferencesStore(
-    useShallow((s) => ({
-      sidebarVariant: s.values.sidebar_variant,
-      sidebarCollapsible: s.values.sidebar_collapsible,
-      isSynced: s.isSynced,
-    })),
-  );
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
+  const router = useRouter();
 
-  const variant = isSynced ? sidebarVariant : props.variant;
-  const collapsible = isSynced ? sidebarCollapsible : props.collapsible;
+  async function signOut() {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.replace("/auth/v1/login");
+    router.refresh();
+  }
 
   return (
-    <Sidebar {...props} variant={variant} collapsible={collapsible}>
+    <Sidebar {...props} collapsible="icon" variant="sidebar">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild size="lg">
               <Link prefetch={false} href="/dashboard/default">
-                <Command />
-                <span className="font-semibold text-base">{APP_CONFIG.name}</span>
+                <div className="flex size-8 items-center justify-center rounded-lg bg-amber-400 text-slate-950">
+                  <BookOpenCheck className="size-5" />
+                </div>
+                <div className="grid flex-1 text-left leading-tight">
+                  <span className="truncate font-semibold">Penkal</span>
+                  <span className="truncate text-muted-foreground text-xs">Mercado Livre</span>
+                </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
+
       <SidebarContent>
         <NavMain items={sidebarItems} />
       </SidebarContent>
+
       <SidebarFooter>
-        <SupportCard />
-        <NavUser user={rootUser} />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton type="button" onClick={signOut} tooltip="Sair">
+              <LogOut />
+              <span>Sair</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
   );
