@@ -25,7 +25,6 @@ const formSchema = z.object({
 
 export function LoginForm() {
   const router = useRouter();
-  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -37,6 +36,7 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
+    const supabase = createClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,

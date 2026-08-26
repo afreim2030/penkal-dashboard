@@ -42,14 +42,19 @@ export async function updateSession(request: NextRequest) {
 
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
-
   const pathname = request.nextUrl.pathname;
-
-  const isPublicRoute = pathname.startsWith("/login") || pathname.startsWith("/auth");
+  const isPublicRoute = pathname === "/auth/v1/login";
 
   if (!claims && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/v1/login";
+
+    return NextResponse.redirect(url);
+  }
+
+  if (claims && isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard/default";
 
     return NextResponse.redirect(url);
   }
