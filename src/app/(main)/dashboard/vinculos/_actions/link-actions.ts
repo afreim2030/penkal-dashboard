@@ -12,7 +12,9 @@ function destination(kind: "success" | "error", message: string) {
 export async function saveIdentifierOverride(formData: FormData) {
   const identifierType = String(formData.get("identifierType") ?? "");
   const rawValue = String(formData.get("rawValue") ?? "").trim();
-  let targetValue = String(formData.get("targetValue") ?? "").trim().toUpperCase();
+  let targetValue = String(formData.get("targetValue") ?? "")
+    .trim()
+    .toUpperCase();
 
   if ((identifierType !== "sku" && identifierType !== "mlb") || !rawValue || !targetValue) {
     redirect(destination("error", "Preencha o identificador correto."));
@@ -31,11 +33,7 @@ export async function saveIdentifierOverride(formData: FormData) {
     targetProductId = product.id;
   } else {
     if (/^\d+$/.test(targetValue)) targetValue = `MLB${targetValue}`;
-    const { data: listing, error } = await supabase
-      .from("listings")
-      .select("id")
-      .eq("mlb", targetValue)
-      .maybeSingle();
+    const { data: listing, error } = await supabase.from("listings").select("id").eq("mlb", targetValue).maybeSingle();
     if (error || !listing) redirect(destination("error", `O MLB ${targetValue} não existe no catálogo.`));
     targetListingId = listing.id;
   }
@@ -54,7 +52,8 @@ export async function saveIdentifierOverride(formData: FormData) {
   if (overrideError) redirect(destination("error", "Não foi possível salvar o vínculo."));
 
   const { error: reconcileError } = await supabase.rpc("reconcile_data_links");
-  if (reconcileError) redirect(destination("error", "O vínculo foi salvo, mas os dados não puderam ser reconciliados."));
+  if (reconcileError)
+    redirect(destination("error", "O vínculo foi salvo, mas os dados não puderam ser reconciliados."));
 
   revalidatePath("/dashboard/vinculos");
   revalidatePath("/dashboard/vendas");
