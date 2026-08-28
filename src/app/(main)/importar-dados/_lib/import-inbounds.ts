@@ -162,9 +162,10 @@ function databaseRowAsParsed(row: ExistingInbound): ParsedInboundRow {
 
 export function inboundDatabaseValues(
   row: ParsedInboundRow,
-  input: { productId: string | null; listingId: string | null; sourceFile: string },
+  input: { importId: string; productId: string | null; listingId: string | null; sourceFile: string },
 ) {
   return {
+    import_id: input.importId,
     inbound_id: row.inboundId,
     received_at: row.receivedAt,
     product_id: input.productId,
@@ -269,6 +270,7 @@ export async function importInboundsFile(input: ImportInboundsFileInput): Promis
       const listingId = row.listingNumbers.length === 1 ? (listingIds.get(row.listingNumbers[0]) ?? null) : null;
       const { error } = await input.supabase.from("full_inbounds").insert(
         inboundDatabaseValues(row, {
+          importId: started.id,
           productId: productIds.get(row.skuRaw) ?? null,
           listingId,
           sourceFile: input.fileName,

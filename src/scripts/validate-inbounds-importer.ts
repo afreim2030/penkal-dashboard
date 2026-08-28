@@ -86,8 +86,19 @@ assert.equal(parsed.rows.filter((item) => item.skuRaw === "SKU-1").length, 2);
 
 // 4–9: vínculos opcionais, MLB único/múltiplo e preservação das duas semânticas.
 const single = parsed.rows[0];
-const linked = inboundDatabaseValues(single, { productId: "product-1", listingId: "listing-1", sourceFile: "a.csv" });
-const unknown = inboundDatabaseValues(single, { productId: null, listingId: null, sourceFile: "a.csv" });
+const linked = inboundDatabaseValues(single, {
+  importId: "import-1",
+  productId: "product-1",
+  listingId: "listing-1",
+  sourceFile: "a.csv",
+});
+const unknown = inboundDatabaseValues(single, {
+  importId: "import-1",
+  productId: null,
+  listingId: null,
+  sourceFile: "a.csv",
+});
+assert.equal(linked.import_id, "import-1");
 assert.equal(linked.product_id, "product-1");
 assert.equal(linked.listing_id, "listing-1");
 assert.equal(unknown.product_id, null);
@@ -96,7 +107,12 @@ const multiple = parseInboundsCsv(csv([row("1", "SKU", { mlb: "5166882296 | 5662
 assert.equal(multiple.mlbRaw, "5166882296 | 5662845348");
 assert.deepEqual(multiple.listingNumbers, ["MLB5166882296", "MLB5662845348"]);
 assert.equal(
-  inboundDatabaseValues(multiple, { productId: null, listingId: null, sourceFile: "b.csv" }).listing_id,
+  inboundDatabaseValues(multiple, {
+    importId: "import-2",
+    productId: null,
+    listingId: null,
+    sourceFile: "b.csv",
+  }).listing_id,
   null,
 );
 assert.deepEqual(normalizeInboundMlbs(" MLB5166882296 | 5662845348 | MLB5166882296 "), [
