@@ -111,17 +111,19 @@ const linked = fullInventorySnapshotRow(parsed.rows[0], {
   importId: "import-1",
   snapshotAt,
   productId: "product-1",
+  listingId: "listing-1",
   sourceFile: "FULL.xlsx",
 });
 const unlinked = fullInventorySnapshotRow(parsed.rows[1], {
   importId: "import-1",
   snapshotAt,
   productId: null,
+  listingId: null,
   sourceFile: "FULL.xlsx",
 });
 assert.equal(linked.product_id, "product-1");
 assert.equal(unlinked.product_id, null);
-assert.equal(linked.listing_id, null);
+assert.equal(linked.listing_id, "listing-1");
 assert.equal(unlinked.listing_id, null);
 assert.equal(linked.snapshot_at, unlinked.snapshot_at);
 assert.equal(linked.snapshot_at, snapshotAt);
@@ -142,7 +144,7 @@ const importerSource = readFileSync(
 );
 assert.match(importerSource, /from\("full_inventory_snapshots"\)\.delete\(\)\.eq\("import_id", existing\.id\)/);
 assert.doesNotMatch(importerSource, /from\("products"\)\.insert/);
-assert.match(importerSource, /listing_id: null/);
+assert.match(importerSource, /row\.mlbs\.length === 1/);
 
 // Arquivo real: critérios críticos definidos para a fotografia atual.
 const realPath = resolve(process.cwd(), "FULL(1).xlsx");

@@ -45,14 +45,20 @@ export function snapshotDateInSaoPaulo(snapshotAt: string): string {
 
 export function fullInventorySnapshotRow(
   row: ParsedFullInventoryRow,
-  input: { importId: string; snapshotAt: string; productId: string | null; sourceFile: string },
+  input: {
+    importId: string;
+    snapshotAt: string;
+    productId: string | null;
+    listingId: string | null;
+    sourceFile: string;
+  },
 ) {
   return {
     import_id: input.importId,
     snapshot_at: input.snapshotAt,
     snapshot_date: snapshotDateInSaoPaulo(input.snapshotAt),
     product_id: input.productId,
-    listing_id: null,
+    listing_id: input.listingId,
     sku_raw: row.skuRaw,
     mlb_raw: row.mlbRaw,
     quantity_full: row.quantityFull,
@@ -156,12 +162,13 @@ export async function importFullInventory(input: ImportFullInventoryInput): Prom
       : { data: [], error: null };
     if (productsError) throw new Error("Não foi possível consultar os produtos.");
     const { data: listings, error: listingsError } = mlbs.length
-      ? await input.supabase.from("listings").select("mlb").in("mlb", mlbs)
+      ? await input.supabase.from("listings").select("id, mlb").in("mlb", mlbs)
       : { data: [], error: null };
     if (listingsError) throw new Error("Não foi possível consultar os anúncios.");
 
     const productIds = new Map((products ?? []).map((product) => [product.sku, product.id]));
-    const knownMlbs = new Set((listings ?? []).map((listing) => listing.mlb));
+    const listingIds = new Map((listings ?? []).map((listing) => [listing.mlb, listing.id]));
+    const knownMlbs = new Set(listingIds.keys());
     const unidentifiedMlbValues = mlbs.filter((mlb) => !knownMlbs.has(mlb));
     const snapshotAt = record.created_at;
     let identifiedSkus = 0;
@@ -187,6 +194,7 @@ export async function importFullInventory(input: ImportFullInventoryInput): Prom
           importId: record.id,
           snapshotAt,
           productId,
+          listingId: row.mlbs.length === 1 ? (listingIds.get(row.mlbs[0]) ?? null) : null,
           sourceFile: input.fileName,
         }),
       );

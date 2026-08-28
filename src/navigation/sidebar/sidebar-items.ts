@@ -2,6 +2,7 @@ import {
   Bell,
   Import,
   LayoutDashboard,
+  Link2,
   type LucideIcon,
   Megaphone,
   Package,
@@ -109,6 +110,12 @@ export const sidebarItems: NavGroup[] = [
     id: 2,
     label: "Operação",
     items: [
+      {
+        id: "identifier-links",
+        title: "Vínculos pendentes",
+        url: "/dashboard/vinculos",
+        icon: Link2,
+      },
       {
         id: "import-data",
         title: "Importar Dados",

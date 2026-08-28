@@ -209,6 +209,11 @@ export async function importListings({
       }
     }
 
+    const { error: reconcileError } = await supabase.rpc("reconcile_data_links");
+    if (reconcileError) {
+      problems.push({ line: 0, message: "Não foi possível reconciliar os vínculos após atualizar o catálogo." });
+    }
+
     const errorCount = new Set(problems.map((problem) => problem.line)).size;
     const status = errorCount > 0 ? "completed_with_errors" : "completed";
     const { error: finishError } = await supabase
