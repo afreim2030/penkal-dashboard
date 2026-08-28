@@ -3,6 +3,7 @@ import {
   Import,
   LayoutDashboard,
   Link2,
+  ListTodo,
   type LucideIcon,
   Megaphone,
   Package,
@@ -110,6 +111,12 @@ export const sidebarItems: NavGroup[] = [
     id: 2,
     label: "Operação",
     items: [
+      {
+        id: "tasks",
+        title: "Tarefas",
+        url: "/dashboard/tarefas",
+        icon: ListTodo,
+      },
       {
         id: "identifier-links",
         title: "Vínculos pendentes",
