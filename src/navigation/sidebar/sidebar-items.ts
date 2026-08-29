@@ -3,6 +3,7 @@ import {
   Import,
   LayoutDashboard,
   Link2,
+  BarChart3,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -62,6 +63,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Dashboard",
         url: "/dashboard/default",
         icon: LayoutDashboard,
+      },
+      {
+        id: "performance",
+        title: "Performance",
+        url: "/dashboard/performance",
+        icon: BarChart3,
       },
       {
         id: "sales",
