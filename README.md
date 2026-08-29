@@ -137,7 +137,7 @@ npx @biomejs/biome check --write
 
 > [!IMPORTANT]  
 > This project is updated frequently. If you’re working from a fork or an older clone, pull the latest changes before syncing. Some updates may include breaking changes.
-
+Deploy autorizado para o projeto Penkal.
 ---
 
 Contributions are welcome. Feel free to open issues, feature requests, or start a discussion.
