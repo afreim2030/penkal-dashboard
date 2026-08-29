@@ -1,9 +1,9 @@
 import {
+  BarChart3,
   Bell,
   Import,
   LayoutDashboard,
   Link2,
-  BarChart3,
   ListTodo,
   type LucideIcon,
   Megaphone,
