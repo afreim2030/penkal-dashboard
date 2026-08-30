@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { resolveAlert } from "../_actions/alert-actions";
+import { reopenAlert, resolveAlert } from "../_actions/alert-actions";
 import type { AlertsDashboardData, OperationalAlertSeverity } from "../_lib/load-alerts-dashboard";
 
 function icon(severity: OperationalAlertSeverity) {
