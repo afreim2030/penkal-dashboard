@@ -4,6 +4,7 @@ import {
   Import,
   LayoutDashboard,
   Link2,
+  FileBarChart,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -123,6 +124,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Tarefas",
         url: "/dashboard/tarefas",
         icon: ListTodo,
+      },
+      {
+        id: "sales-reports",
+        title: "Relatórios de vendas",
+        url: "/dashboard/relatorios-vendas",
+        icon: FileBarChart,
       },
       {
         id: "identifier-links",
