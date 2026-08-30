@@ -23,9 +23,12 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const [products, inbounds, conflictsResult] = await Promise.all([
     loadProductsDashboard(),
     loadFullInboundsDashboard(),
-    supabase.from("sales_import_conflicts")
+    supabase
+      .from("sales_import_conflicts")
       .select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at")
-      .is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
   const alerts: OperationalAlert[] = [];
 
@@ -39,7 +42,9 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
         conflict.sale_number ? `Venda ${conflict.sale_number}` : null,
         conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null,
         conflict.conflict_type,
-      ].filter(Boolean).join(" · "),
+      ]
+        .filter(Boolean)
+        .join(" · "),
       href: "/importar-dados",
     });
   }
