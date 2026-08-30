@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { resolveAlert } from "../_actions/alert-actions";
 import type { AlertsDashboardData, OperationalAlertSeverity } from "../_lib/load-alerts-dashboard";
 
 function icon(severity: OperationalAlertSeverity) {
@@ -86,6 +87,12 @@ export function AlertsDashboard({ data }: { data: AlertsDashboardData }) {
                   <Button asChild size="sm" variant="outline">
                     <Link href={alert.href}>Ver</Link>
                   </Button>
+                  <form action={resolveAlert}>
+                    <input name="alertKey" type="hidden" value={alert.id} />
+                    <Button size="sm" type="submit">
+                      Resolver
+                    </Button>
+                  </form>
                 </div>
               </div>
             ))
