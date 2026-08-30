@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-import { updateTaskStatus } from "../_actions/task-actions";
+import { createTask, updateTaskStatus } from "../_actions/task-actions";
 import type { OperationalTask, TaskPriority, TaskStatus } from "../_lib/load-operational-tasks";
 
 const statusLabel: Record<TaskStatus, string> = {
@@ -64,6 +64,7 @@ export function TasksDashboard({ tasks }: { tasks: OperationalTask[] }) {
         <h1 className="text-3xl font-semibold tracking-tight">Tarefas</h1>
         <p className="text-muted-foreground text-sm">Ações operacionais derivadas dos alertas do painel.</p>
       </div>
+      <Card><CardHeader><CardTitle>Nova tarefa</CardTitle><CardDescription>Registre uma ação própria da operação.</CardDescription></CardHeader><CardContent><form action={createTask} className="grid gap-3 md:grid-cols-4"><input className="h-9 rounded-md border bg-background px-3 text-sm md:col-span-2" name="title" placeholder="Título da tarefa" required /><input className="h-9 rounded-md border bg-background px-3 text-sm" name="dueDate" type="date" /><select className="h-9 rounded-md border bg-background px-3 text-sm" defaultValue="medium" name="priority"><option value="low">Prioridade baixa</option><option value="medium">Prioridade média</option><option value="high">Prioridade alta</option><option value="critical">Prioridade crítica</option></select><textarea className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm md:col-span-3" name="description" placeholder="Descrição (opcional)" /><Button type="submit">Criar tarefa</Button></form></CardContent></Card>
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
