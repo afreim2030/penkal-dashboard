@@ -86,6 +86,20 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     });
   }
 
+  if (alerts.length > 0) {
+    await supabase.from("operational_tasks").upsert(
+      alerts.map((alert) => ({
+        alert_id: alert.id,
+        title: alert.title,
+        description: alert.description,
+        category: alert.category,
+        priority: alert.severity === "critical" ? "critical" : alert.severity === "warning" ? "high" : "medium",
+        status: "pending",
+      })),
+      { onConflict: "alert_id", ignoreDuplicates: true },
+    );
+  }
+
   const { data: resolved } = await supabase.from("alert_resolutions").select("alert_key");
   const resolvedItems = (resolved ?? []).map((row) => ({ alertKey: row.alert_key, resolvedAt: row.resolved_at }));
   const resolvedKeys = new Set(resolvedItems.map((row) => row.alertKey));
