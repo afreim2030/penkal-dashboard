@@ -1,10 +1,10 @@
 import {
   BarChart3,
   Bell,
+  FileBarChart,
   Import,
   LayoutDashboard,
   Link2,
-  FileBarChart,
   ListTodo,
   type LucideIcon,
   Megaphone,
