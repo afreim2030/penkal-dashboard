@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-
 import { loadAlertsDashboard } from "@/app/(main)/dashboard/alertas/_lib/load-alerts-dashboard";
 import { loadMainDashboard } from "@/app/(main)/dashboard/default/_lib/load-main-dashboard";
 import { loadAdsDashboard } from "@/app/(main)/dashboard/publicidade/_lib/load-ads-dashboard";
@@ -7,153 +6,47 @@ import { createClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-function extractOutputText(payload: unknown): string {
-  if (!payload || typeof payload !== "object") return "";
-  const value = payload as {
-    output_text?: unknown;
-    output?: Array<{ content?: Array<{ type?: string; text?: string }> }>;
-  };
-  if (typeof value.output_text === "string") return value.output_text.trim();
-  return (value.output ?? [])
-    .flatMap((item) => item.content ?? [])
-    .filter((item) => item.type === "output_text" && typeof item.text === "string")
-    .map((item) => item.text as string)
-    .join("\n")
-    .trim();
+function compactContext(dashboard: NonNullable<Awaited<ReturnType<typeof loadMainDashboard>>>, alerts: Awaited<ReturnType<typeof loadAlertsDashboard>>, ads: Awaited<ReturnType<typeof loadAdsDashboard>>) {
+  const topAffected = [...dashboard.products.products].filter((product) => product.stockTimeAffected > 0).sort((left, right) => right.stockTimeAffected - left.stockTimeAffected).slice(0, 12).map((product) => ({ sku: product.sku, name: product.name, fullStock: product.fullStock, stockTimeAffected: product.stockTimeAffected, unitsPeriod: product.unitsPeriod, daysSinceSale: product.daysSinceSale }));
+  const topSelling = [...dashboard.products.products].sort((left, right) => right.unitsPeriod - left.unitsPeriod).slice(0, 12).map((product) => ({ sku: product.sku, name: product.name, unitsPeriod: product.unitsPeriod, revenuePeriod: product.revenuePeriod, fullStock: product.fullStock, visits7: product.visits7, conversion7: product.conversion7 }));
+  return { sales: { latestDay: dashboard.sales.latestDay }, products: { summary: dashboard.products.summary, topSelling, topAffected }, ads: ads ? { period: ads.period, summary: ads.summary } : null, alerts: { items: alerts.alerts.slice(0, 15) } };
 }
 
-function compactContext(
-  dashboard: NonNullable<Awaited<ReturnType<typeof loadMainDashboard>>>,
-  alerts: Awaited<ReturnType<typeof loadAlertsDashboard>>,
-  ads: Awaited<ReturnType<typeof loadAdsDashboard>>,
-) {
-  const topAffected = [...dashboard.products.products]
-    .filter((product) => product.stockTimeAffected > 0)
-    .sort((left, right) => right.stockTimeAffected - left.stockTimeAffected)
-    .slice(0, 12)
-    .map((product) => ({
-      sku: product.sku,
-      name: product.name,
-      fullStock: product.fullStock,
-      stockTimeAffected: product.stockTimeAffected,
-      unitsPeriod: product.unitsPeriod,
-      daysSinceSale: product.daysSinceSale,
-    }));
+type AnalysisContext = ReturnType<typeof compactContext>;
+const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
+const percent = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 1 });
 
-  const topSelling = [...dashboard.products.products]
-    .sort((left, right) => right.unitsPeriod - left.unitsPeriod)
-    .slice(0, 12)
-    .map((product) => ({
-      sku: product.sku,
-      name: product.name,
-      unitsPeriod: product.unitsPeriod,
-      revenuePeriod: product.revenuePeriod,
-      fullStock: product.fullStock,
-      visits7: product.visits7,
-      conversion7: product.conversion7,
-    }));
-
-  return {
-    dataPolicy: {
-      productIdentity: "SKU",
-      stockTruth: "somente estoque FULL",
-      timezone: "America/Sao_Paulo",
-      comparisons: "somente dias com cobertura completa",
-      missingSku: "não inventar vínculo",
-    },
-    sales: {
-      coverage: dashboard.sales.coverage,
-      latestDay: dashboard.sales.latestDay,
-      previousDay: dashboard.sales.previousDay,
-      sameWeekdayPreviousWeek: dashboard.sales.sameWeekdayPreviousWeek,
-      periods: dashboard.sales.periods,
-      topSkus: dashboard.sales.topSkus.slice(0, 12),
-      strongestHours: [...dashboard.sales.hourly].sort((a, b) => b.units - a.units).slice(0, 8),
-      weekdays: dashboard.sales.weekdays,
-    },
-    products: {
-      asOf: dashboard.products.asOf,
-      summary: dashboard.products.summary,
-      topSelling,
-      topAffected,
-    },
-    fullInbounds: {
-      summary: dashboard.inbounds.summary,
-      topDifferences: dashboard.inbounds.topDifferences.slice(0, 10),
-    },
-    ads: ads
-      ? {
-          period: ads.period,
-          summary: ads.summary,
-          campaigns: ads.campaigns.slice(0, 10),
-        }
-      : null,
-    alerts: {
-      summary: alerts.summary,
-      items: alerts.alerts.slice(0, 15),
-    },
-  };
+function automaticAnalysis(question: string, context: AnalysisContext): string {
+  const normalized = question.toLocaleLowerCase("pt-BR");
+  const lines: string[] = ["RESUMO VERIFICADO"];
+  const latest = context.sales.latestDay;
+  if (latest.date) lines.push(`• Último dia completo: ${latest.date} — ${integer.format(latest.units)} unidades e ${currency.format(latest.revenue)}.`);
+  lines.push(`• Catálogo: ${integer.format(context.products.summary.products)} SKUs; ${integer.format(context.products.summary.withFullStock)} com estoque FULL.`);
+  if (context.ads?.period) lines.push(`• Publicidade: ${currency.format(context.ads.summary.investment)} investidos, ${currency.format(context.ads.summary.revenue)} de receita atribuída, ACOS ${context.ads.summary.acos === null ? "indisponível" : percent.format(context.ads.summary.acos)} e ROAS ${context.ads.summary.roas?.toFixed(2) ?? "indisponível"}x.`);
+  lines.push("", "PRIORIDADES");
+  if (normalized.includes("sku") || normalized.includes("produto")) {
+    context.products.topSelling.slice(0, 6).forEach((item, index) => lines.push(`${index + 1}. SKU ${item.sku} — ${item.name}: ${integer.format(item.unitsPeriod)} unidades no período, ${integer.format(item.fullStock)} no FULL${item.conversion7 === null ? "" : `, conversão ${percent.format(item.conversion7)}`}.`));
+  } else if (normalized.includes("oportunidade") || normalized.includes("venda")) {
+    context.products.topSelling.filter((item) => item.fullStock > 0).slice(0, 6).forEach((item, index) => lines.push(`${index + 1}. SKU ${item.sku} — preservar disponibilidade: ${integer.format(item.unitsPeriod)} vendidas e ${integer.format(item.fullStock)} unidades no FULL.`));
+  } else {
+    const alertItems = context.alerts.items.slice(0, 4);
+    alertItems.forEach((item, index) => lines.push(`${index + 1}. ${item.title} — ${item.description}`));
+    const offset = alertItems.length;
+    context.products.topAffected.slice(0, Math.max(0, 6 - offset)).forEach((item, index) => lines.push(`${offset + index + 1}. SKU ${item.sku} — ${integer.format(item.stockTimeAffected)} unidades afetando tempo de estoque; ${integer.format(item.unitsPeriod)} vendidas no período.`));
+  }
+  if (lines.at(-1) === "PRIORIDADES") lines.push("Nenhuma prioridade calculável com os dados disponíveis.");
+  lines.push("", "A análise acima usa somente números presentes no painel e não presume causas.");
+  return lines.join("\n");
 }
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "A IA está pronta, mas falta configurar OPENAI_API_KEY no ambiente do servidor." },
-      { status: 503 },
-    );
-  }
-
   let question = "Analise a operação e diga o que merece atenção agora.";
-  try {
-    const body = (await request.json()) as { question?: unknown };
-    if (typeof body.question === "string" && body.question.trim()) question = body.question.trim().slice(0, 2000);
-  } catch {
-    // Corpo vazio usa a pergunta padrão.
-  }
-
+  try { const body = await request.json() as { question?: unknown }; if (typeof body.question === "string" && body.question.trim()) question = body.question.trim().slice(0, 2000); } catch { /* Corpo vazio usa a pergunta padrão. */ }
   const [dashboard, alerts, ads] = await Promise.all([loadMainDashboard(), loadAlertsDashboard(), loadAdsDashboard()]);
-  if (!dashboard) {
-    return NextResponse.json(
-      { error: "Ainda não há dados suficientes para montar o contexto da IA." },
-      { status: 422 },
-    );
-  }
-
-  const context = compactContext(dashboard, alerts, ads);
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: process.env.OPENAI_MODEL || "gpt-5.6",
-      store: false,
-      max_output_tokens: 1400,
-      instructions:
-        "Você é um analista de marketplace da Editora Penkal. Responda em português do Brasil. Use exclusivamente os dados estruturados fornecidos. Não invente SKU, estoque, visita, venda ou causa. Separe fatos de hipóteses. Quando faltar uma fonte, diga explicitamente que ela está ausente. Priorize ações práticas para Mercado Livre. Seja conciso, use títulos curtos e no máximo 6 prioridades.",
-      input: `PERGUNTA DO USUÁRIO:\n${question}\n\nDADOS VERIFICADOS DO PAINEL:\n${JSON.stringify(context)}`,
-    }),
-  });
-
-  const payload = (await response.json()) as unknown;
-  if (!response.ok) {
-    const errorPayload = payload as { error?: { message?: string } };
-    return NextResponse.json(
-      { error: errorPayload.error?.message ?? "A OpenAI não conseguiu gerar a análise." },
-      { status: response.status },
-    );
-  }
-
-  const answer = extractOutputText(payload);
-  if (!answer) return NextResponse.json({ error: "A IA respondeu sem texto utilizável." }, { status: 502 });
-
-  return NextResponse.json({ answer });
+  if (!dashboard) return NextResponse.json({ error: "Ainda não há dados suficientes para montar a análise." }, { status: 422 });
+  return NextResponse.json({ answer: automaticAnalysis(question, compactContext(dashboard, alerts, ads)), mode: "automatic" });
 }
