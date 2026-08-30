@@ -1,5 +1,6 @@
-import { createHash } from "node:crypto";
 import { read, utils, type WorkBook } from "xlsx";
+
+import { createHash } from "node:crypto";
 
 type CellValue = string | number | boolean | Date | null | undefined;
 const REQUIRED_HEADERS = ["Desde", "Até", "Campanha", "Código do anúncio", "Impressões", "Investimento (Moeda local)"];
@@ -38,7 +39,12 @@ function text(value: CellValue): string {
 }
 
 function normalize(value: CellValue): string {
-  return text(value).normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toLocaleLowerCase("pt-BR");
+  return text(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLocaleLowerCase("pt-BR");
 }
 
 function decimal(value: CellValue): number | null {
@@ -63,8 +69,21 @@ function percent(value: CellValue): number | null {
 function isoDate(value: CellValue): string | null {
   if (value instanceof Date && !Number.isNaN(value.valueOf())) return value.toISOString().slice(0, 10);
   const raw = normalize(value).replace(/\./g, "");
-  const months: Record<string, string> = { jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06", jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12" };
-  const match = raw.match(/^(\d{1,2})[-\/]([a-z]{3})[-\/](\d{4})$/);
+  const months: Record<string, string> = {
+    jan: "01",
+    fev: "02",
+    mar: "03",
+    abr: "04",
+    mai: "05",
+    jun: "06",
+    jul: "07",
+    ago: "08",
+    set: "09",
+    out: "10",
+    nov: "11",
+    dez: "12",
+  };
+  const match = raw.match(/^(\d{1,2})[-/]([a-z]{3})[-/](\d{4})$/);
   if (!match || !months[match[2]]) return null;
   return `${match[3]}-${months[match[2]]}-${match[1].padStart(2, "0")}`;
 }
@@ -77,7 +96,10 @@ function normalizeMlb(value: CellValue): string | null {
 function workbookRows(workbook: WorkBook): CellValue[][] {
   for (const name of workbook.SheetNames) {
     const rows = utils.sheet_to_json<CellValue[]>(workbook.Sheets[name], { header: 1, raw: true, defval: null });
-    if (rows.some((row) => REQUIRED_HEADERS.every((header) => row.some((cell) => normalize(cell) === normalize(header))))) return rows;
+    if (
+      rows.some((row) => REQUIRED_HEADERS.every((header) => row.some((cell) => normalize(cell) === normalize(header))))
+    )
+      return rows;
   }
   throw new Error("A aba 'Relatório Anúncios patrocinados' não foi encontrada.");
 }
@@ -88,7 +110,9 @@ function field(row: CellValue[], indexes: Map<string, number>, header: string): 
 
 export function parseAdsWorkbook(workbook: WorkBook): ParsedAdsFile {
   const rows = workbookRows(workbook);
-  const headerLine = rows.findIndex((row) => REQUIRED_HEADERS.every((header) => row.some((cell) => normalize(cell) === normalize(header))));
+  const headerLine = rows.findIndex((row) =>
+    REQUIRED_HEADERS.every((header) => row.some((cell) => normalize(cell) === normalize(header))),
+  );
   if (headerLine < 0) throw new Error("Cabeçalho do relatório de publicidade não encontrado.");
   const indexes = new Map(rows[headerLine].map((value, index) => [normalize(value), index]));
   const parsed: ParsedAdsRow[] = [];
@@ -107,7 +131,9 @@ export function parseAdsWorkbook(workbook: WorkBook): ParsedAdsFile {
       continue;
     }
     const withoutHash = {
-      periodStart, periodEnd, campaignName,
+      periodStart,
+      periodEnd,
+      campaignName,
       title: text(field(source, indexes, "Título do anúncio patrocinado")) || null,
       mlbRaw,
       status: text(field(source, indexes, "Status")) || null,
