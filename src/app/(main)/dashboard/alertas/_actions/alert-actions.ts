@@ -43,10 +43,7 @@ export async function reopenAlert(formData: FormData) {
   const { error } = await supabase.from("alert_resolutions").delete().eq("alert_key", alertKey);
   if (error) throw new Error("Não foi possível reabrir o alerta.");
 
-  await supabase
-    .from("operational_tasks")
-    .update({ status: "pending", completed_at: null })
-    .eq("alert_id", alertKey);
+  await supabase.from("operational_tasks").update({ status: "pending", completed_at: null }).eq("alert_id", alertKey);
 
   revalidatePath("/dashboard/alertas");
   revalidatePath("/dashboard/tarefas");
