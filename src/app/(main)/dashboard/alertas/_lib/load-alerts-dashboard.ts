@@ -85,12 +85,16 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     });
   }
 
+  const { data: resolved } = await supabase.from("alert_resolutions").select("alert_key");
+  const resolvedKeys = new Set((resolved ?? []).map((row) => row.alert_key));
+  const visibleAlerts = alerts.filter((alert) => !resolvedKeys.has(alert.id));
+
   const summary = {
-    critical: alerts.filter((alert) => alert.severity === "critical").length,
-    warning: alerts.filter((alert) => alert.severity === "warning").length,
-    info: alerts.filter((alert) => alert.severity === "info").length,
-    total: alerts.length,
+    critical: visibleAlerts.filter((alert) => alert.severity === "critical").length,
+    warning: visibleAlerts.filter((alert) => alert.severity === "warning").length,
+    info: visibleAlerts.filter((alert) => alert.severity === "info").length,
+    total: visibleAlerts.length,
   };
 
-  return { summary, alerts };
+  return { summary, alerts: visibleAlerts };
 }
