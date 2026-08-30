@@ -22,6 +22,7 @@ export interface AlertsDashboardData {
     total: number;
   };
   alerts: OperationalAlert[];
+  resolved: { alertKey: string; resolvedAt: string }[];
 }
 
 export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
@@ -86,7 +87,8 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   }
 
   const { data: resolved } = await supabase.from("alert_resolutions").select("alert_key");
-  const resolvedKeys = new Set((resolved ?? []).map((row) => row.alert_key));
+  const resolvedItems = (resolved ?? []).map((row) => ({ alertKey: row.alert_key, resolvedAt: row.resolved_at }));
+  const resolvedKeys = new Set(resolvedItems.map((row) => row.alertKey));
   const visibleAlerts = alerts.filter((alert) => !resolvedKeys.has(alert.id));
 
   const summary = {
@@ -96,5 +98,5 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     total: visibleAlerts.length,
   };
 
-  return { summary, alerts: visibleAlerts };
+  return { summary, alerts: visibleAlerts, resolved: resolvedItems };
 }
