@@ -18,7 +18,6 @@ export async function updateTaskStatus(formData: FormData) {
   revalidatePath("/dashboard/tarefas");
 }
 
-
 export async function createTask(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim() || null;
