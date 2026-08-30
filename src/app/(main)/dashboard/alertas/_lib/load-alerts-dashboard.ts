@@ -20,6 +20,9 @@ export interface AlertsDashboardData {
 
 export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) throw new Error("Usuário não autenticado.");
+
   const [products, inbounds, conflictsResult] = await Promise.all([
     loadProductsDashboard(),
     loadFullInboundsDashboard(),
@@ -81,6 +84,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     const { error } = await supabase.from("operational_tasks").upsert(
       alerts.map((alert) => ({
         alert_key: alert.id,
+        created_by: authData.user.id,
         title: alert.title,
         description: alert.description,
         category: alert.category,
