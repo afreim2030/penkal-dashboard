@@ -5,8 +5,10 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
 import { ThemeSwitcher } from "./_components/header/theme-switcher";
+import { getMarketplaceAccounts } from "@/lib/marketplace-accounts";
 
-export default function Layout({ children }: Readonly<{ children: ReactNode }>) {
+export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
+  const { accounts, activeAccountId } = await getMarketplaceAccounts();
   return (
     <SidebarProvider
       defaultOpen
@@ -16,7 +18,7 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
         } as React.CSSProperties
       }
     >
-      <AppSidebar />
+      <AppSidebar accounts={accounts} activeAccountId={activeAccountId} />
       <SidebarInset className="min-w-0 overflow-x-clip">
         <header className="sticky top-0 z-40 flex h-12 shrink-0 items-center border-b bg-background/90 backdrop-blur-md">
           <div className="flex w-full items-center justify-between px-4 lg:px-6">
