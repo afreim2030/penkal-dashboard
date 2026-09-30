@@ -17,7 +17,7 @@ const REQUIRED_MARKERS = ["saleNumber", "saleDate", "status", "quantity", "produ
 
 const COLUMN_ALIASES = {
   saleNumber: ["N.º de venda", "Nº de venda", "N° de venda", "Número da venda"],
-  saleDate: ["Data da venda"],
+  saleDate: ["Data da venda", "Data de venda"],
   status: ["Estado", "Status"],
   statusDescription: ["Descrição do estado", "Descrição do status"],
   quantity: ["Unidades", "Quantidade"],
