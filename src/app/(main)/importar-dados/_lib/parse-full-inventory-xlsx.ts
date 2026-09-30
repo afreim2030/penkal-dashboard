@@ -14,10 +14,13 @@ const HEADER_ALIASES = {
     "unidades que afetam o tempo de estoque",
     "unidades que afetam metrica de tempo de estoque",
     "unidades que afetam a metrica estoque",
+    "unidades aptas para venda",
   ],
   vendas30d: [
     "vendas ultimos 30 dias (un.)",
     "vendas ultimos 30 dias",
+    "unidades vendidas ultimos 30 dias",
+    "unidades vendidas ultimos 30 dias (un.)",
     "vendas 30 dias",
     "vendas (30d)",
     "vendas 30d",
@@ -50,8 +53,8 @@ function text(value: CellValue): string {
 function normalized(value: CellValue): string {
   return text(value)
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
-    .replace(/\\s+/g, " ")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
     .trim()
     .toLocaleLowerCase("pt-BR");
 }
@@ -69,8 +72,8 @@ export function normalizeFullMlbs(value: CellValue): string[] {
   for (const part of text(value).split("|")) {
     const digits = part
       .toUpperCase()
-      .replace(/^\\s*ML[AB]/, "")
-      .replace(/\\D/g, "");
+      .replace(/^\s*ML[AB]/, "")
+      .replace(/\D/g, "");
     if (digits) seen.add(`MLB${digits}`);
   }
   return [...seen];
@@ -91,9 +94,10 @@ function matches(value: CellValue, aliases: readonly string[]): boolean {
 }
 
 function findHeader(rows: CellValue[][]): number {
+  const required = [HEADER_ALIASES.sku, HEADER_ALIASES.mlb, HEADER_ALIASES.produto, HEADER_ALIASES.unidadesFull, HEADER_ALIASES.vendas30d];
   return rows.findIndex((_row, index) => {
     const values = rows.slice(index, index + 3).flat();
-    return Object.values(HEADER_ALIASES).every((aliases) => values.some((value) => matches(value, aliases)));
+    return required.every((aliases) => values.some((value) => matches(value, aliases)));
   });
 }
 
