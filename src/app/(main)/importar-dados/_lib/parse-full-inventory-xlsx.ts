@@ -102,8 +102,9 @@ function column(row: CellValue[], aliases: readonly string[]): number {
 }
 
 function fullGroupEnd(workbook: WorkBook, headerRow: number, start: number): number {
-  const sheet = workbook.Sheets.Resumo;
-  const merge = (sheet["!merges"] ?? []).find(({ s, e }) => Math.abs(s.r - headerRow) <= 2 && s.c === start && e.c >= start);
+  const sheetName = workbook.SheetNames.find((name) => normalized(name) === "resumo") ?? workbook.SheetNames[0];
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
+  const merge = (sheet?.["!merges"] ?? []).find(({ s, e }) => Math.abs(s.r - headerRow) <= 2 && s.c === start && e.c >= start);
   return merge?.e.c ?? start;
 }
 
