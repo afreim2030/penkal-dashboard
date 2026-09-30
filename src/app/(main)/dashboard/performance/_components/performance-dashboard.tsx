@@ -47,7 +47,7 @@ function Ranking({ title, description, rows }: { title: string; description: str
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>SKU / MLB</TableHead>
+              <TableHead>Produto</TableHead>
               <TableHead className="text-right">Visitas</TableHead>
               <TableHead className="text-right">Vendas</TableHead>
               <TableHead className="text-right">Conversão</TableHead>
@@ -57,10 +57,11 @@ function Ranking({ title, description, rows }: { title: string; description: str
             {rows.slice(0, 10).map((row, index) => (
               <TableRow key={`${row.sku ?? "sem-sku"}-${row.mlb ?? index}`}>
                 <TableCell>
-                  <div className="font-medium">{row.sku ?? "Sem SKU"}</div>
+                  <div className="max-w-[28rem] truncate font-medium" title={row.title ?? undefined}>
+                    {row.title ?? "Produto sem nome"}
+                  </div>
                   <div className="text-muted-foreground text-xs">
-                    {row.mlb ?? "MLB não informado"}
-                    {row.productName ? ` · ${row.productName}` : ""}
+                    SKU {row.sku ?? "não informado"} · {row.mlb ?? "MLB não informado"}
                   </div>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{integer.format(row.visits)}</TableCell>
