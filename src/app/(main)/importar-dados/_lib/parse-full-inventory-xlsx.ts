@@ -4,14 +4,25 @@ import type { FullImportProblem } from "./full-import-types";
 
 type CellValue = string | number | boolean | Date | null | undefined;
 
-const REQUIRED_HEADERS = [
-  "sku",
-  "# anuncio",
-  "produto",
-  "unidades no full",
-  "unidades que afetam a metrica de tempo de estoque",
-  "vendas ultimos 30 dias (un.)",
-];
+const HEADER_ALIASES = {
+  sku: ["sku", "codigo sku", "código sku"],
+  mlb: ["# anuncio", "# de anuncio", "anuncio", "id anuncio", "id do anuncio", "mlb", "codigo ml"],
+  produto: ["produto", "nome do produto", "titulo", "titulo do anuncio", "descricao"],
+  unidadesFull: ["unidades no full", "estoque no full", "estoque full", "unidades full"],
+  unidadesTempo: [
+    "unidades que afetam a metrica de tempo de estoque",
+    "unidades que afetam o tempo de estoque",
+    "unidades que afetam metrica de tempo de estoque",
+    "unidades que afetam a metrica estoque",
+  ],
+  vendas30d: [
+    "vendas ultimos 30 dias (un.)",
+    "vendas ultimos 30 dias",
+    "vendas 30 dias",
+    "vendas (30d)",
+    "vendas 30d",
+  ],
+} as const;
 
 export interface ParsedFullInventoryRow {
   line: number;
@@ -66,33 +77,40 @@ export function normalizeFullMlbs(value: CellValue): string[] {
 }
 
 function mergedHeader(rows: CellValue[][], rowIndex: number): CellValue[] {
-  const current = rows[rowIndex] ?? [];
-  const next = rows[rowIndex + 1] ?? [];
-  const width = Math.max(current.length, next.length);
-  return Array.from({ length: width }, (_, index) => text(current[index]) || next[index] || null);
-}
-
-function findHeader(rows: CellValue[][]): number {
-  return rows.findIndex((row, index) => {
-    const values = new Set([...row, ...(rows[index + 1] ?? [])].map(normalized));
-    return REQUIRED_HEADERS.every((header) => values.has(header));
+  const headerRows = [rows[rowIndex] ?? [], rows[rowIndex + 1] ?? [], rows[rowIndex + 2] ?? []];
+  const width = Math.max(...headerRows.map((row) => row.length), 0);
+  return Array.from({ length: width }, (_, index) => {
+    const parts = headerRows.map((row) => text(row[index])).filter(Boolean);
+    return parts.join(" ") || null;
   });
 }
 
-function column(row: CellValue[], header: string): number {
-  return row.findIndex((value) => normalized(value) === header);
+function matches(value: CellValue, aliases: readonly string[]): boolean {
+  const candidate = normalized(value);
+  return aliases.some((alias) => candidate === normalized(alias) || candidate.includes(normalized(alias)));
+}
+
+function findHeader(rows: CellValue[][]): number {
+  return rows.findIndex((_row, index) => {
+    const values = rows.slice(index, index + 3).flat();
+    return Object.values(HEADER_ALIASES).every((aliases) => values.some((value) => matches(value, aliases)));
+  });
+}
+
+function column(row: CellValue[], aliases: readonly string[]): number {
+  return row.findIndex((value) => matches(value, aliases));
 }
 
 function fullGroupEnd(workbook: WorkBook, headerRow: number, start: number): number {
   const sheet = workbook.Sheets.Resumo;
-  const merge = (sheet["!merges"] ?? []).find(({ s, e }) => s.r === headerRow && s.c === start && e.c >= start);
-  if (!merge) throw new Error('O grupo "Unidades no Full" não possui a estrutura esperada.');
-  return merge.e.c;
+  const merge = (sheet["!merges"] ?? []).find(({ s, e }) => Math.abs(s.r - headerRow) <= 2 && s.c === start && e.c >= start);
+  return merge?.e.c ?? start;
 }
 
 export function parseFullInventoryWorkbook(workbook: WorkBook): ParsedFullInventoryFile {
-  const sheet = workbook.Sheets.Resumo;
-  if (!sheet) throw new Error('A aba obrigatória "Resumo" não foi encontrada.');
+  const sheetName = workbook.SheetNames.find((name) => normalized(name) === "resumo") ?? workbook.SheetNames[0];
+  const sheet = sheetName ? workbook.Sheets[sheetName] : undefined;
+  if (!sheet) throw new Error("Nenhuma aba válida foi encontrada no arquivo.");
 
   const range = utils.decode_range(sheet["!ref"] ?? "A1");
   const rows = utils.sheet_to_json<CellValue[]>(sheet, {
@@ -105,14 +123,14 @@ export function parseFullInventoryWorkbook(workbook: WorkBook): ParsedFullInvent
   if (headerRow < 0) throw new Error("Não foi possível localizar dinamicamente o cabeçalho do estoque FULL.");
 
   const headers = mergedHeader(rows, headerRow);
-  const skuColumn = column(headers, "sku");
-  const mlbColumn = column(headers, "# anuncio");
-  const titleColumn = column(headers, "produto");
-  const quantityStart = column(headers, "unidades no full");
+  const skuColumn = column(headers, HEADER_ALIASES.sku);
+  const mlbColumn = column(headers, HEADER_ALIASES.mlb);
+  const titleColumn = column(headers, HEADER_ALIASES.produto);
+  const quantityStart = column(headers, HEADER_ALIASES.unidadesFull);
   const quantityEnd = fullGroupEnd(workbook, headerRow, quantityStart);
-  const salesColumn = column(headers, "vendas ultimos 30 dias (un.)");
-  const stockTimeColumn = column(headers, "unidades que afetam a metrica de tempo de estoque");
-  const codeColumn = column(headers, "codigo ml");
+  const salesColumn = column(headers, HEADER_ALIASES.vendas30d);
+  const stockTimeColumn = column(headers, HEADER_ALIASES.unidadesTempo);
+  const codeColumn = column(headers, ["codigo ml"]);
   const problems: FullImportProblem[] = [];
   const parsedRows: ParsedFullInventoryRow[] = [];
   const seenSkus = new Set<string>();
