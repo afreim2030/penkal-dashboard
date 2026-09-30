@@ -39,8 +39,8 @@ function text(value: CellValue): string {
 function normalized(value: CellValue): string {
   return text(value)
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/\\s+/g, " ")
     .trim()
     .toLocaleLowerCase("pt-BR");
 }
@@ -49,7 +49,7 @@ function integer(value: CellValue): number | null {
   if (typeof value === "number") return Number.isFinite(value) && Number.isInteger(value) ? value : null;
   const valueText = text(value);
   if (!valueText) return null;
-  const parsed = Number(valueText.replace(/\./g, "").replace(",", "."));
+  const parsed = Number(valueText.replace(/\\./g, "").replace(",", "."));
   return Number.isFinite(parsed) && Number.isInteger(parsed) ? parsed : null;
 }
 
@@ -58,16 +58,23 @@ export function normalizeFullMlbs(value: CellValue): string[] {
   for (const part of text(value).split("|")) {
     const digits = part
       .toUpperCase()
-      .replace(/^\s*ML[AB]/, "")
-      .replace(/\D/g, "");
+      .replace(/^\\s*ML[AB]/, "")
+      .replace(/\\D/g, "");
     if (digits) seen.add(`MLB${digits}`);
   }
   return [...seen];
 }
 
+function mergedHeader(rows: CellValue[][], rowIndex: number): CellValue[] {
+  const current = rows[rowIndex] ?? [];
+  const next = rows[rowIndex + 1] ?? [];
+  const width = Math.max(current.length, next.length);
+  return Array.from({ length: width }, (_, index) => text(current[index]) || next[index] || null);
+}
+
 function findHeader(rows: CellValue[][]): number {
-  return rows.findIndex((row) => {
-    const values = new Set(row.map(normalized));
+  return rows.findIndex((row, index) => {
+    const values = new Set([...row, ...(rows[index + 1] ?? [])].map(normalized));
     return REQUIRED_HEADERS.every((header) => values.has(header));
   });
 }
@@ -97,7 +104,7 @@ export function parseFullInventoryWorkbook(workbook: WorkBook): ParsedFullInvent
   const headerRow = findHeader(rows);
   if (headerRow < 0) throw new Error("Não foi possível localizar dinamicamente o cabeçalho do estoque FULL.");
 
-  const headers = rows[headerRow];
+  const headers = mergedHeader(rows, headerRow);
   const skuColumn = column(headers, "sku");
   const mlbColumn = column(headers, "# anuncio");
   const titleColumn = column(headers, "produto");
