@@ -306,7 +306,9 @@ export async function importSales(input: ImportSalesInput): Promise<SalesImportR
   for (const file of input.files) {
     const fileHash = salesFileHash(file.buffer);
     const exportedAtFromFilename = parseSalesExportedAt(file.fileName);
-    // Arquivos renomeados não trazem data no nome. Nessa situação, a própria importação\n    // é a referência mais recente disponível para comparar versões com segurança.\n    const sourceExportedAt = exportedAtFromFilename ?? new Date().toISOString();
+    // Arquivos renomeados não trazem data no nome. Nessa situação, a própria importação
+    // é a referência mais recente disponível para comparar versões com segurança.
+    const sourceExportedAt = exportedAtFromFilename ?? new Date().toISOString();
     const sourceExportedAtSource: SalesExportedAtSource = exportedAtFromFilename ? "filename" : "import_time";
     const { record, blocked } = await startImport(
       input.supabase,
