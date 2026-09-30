@@ -63,7 +63,7 @@ function integer(value: CellValue): number | null {
   if (typeof value === "number") return Number.isFinite(value) && Number.isInteger(value) ? value : null;
   const valueText = text(value);
   if (!valueText) return null;
-  const parsed = Number(valueText.replace(/\\./g, "").replace(",", "."));
+  const parsed = Number(valueText.replace(/\./g, "").replace(",", "."));
   return Number.isFinite(parsed) && Number.isInteger(parsed) ? parsed : null;
 }
 
