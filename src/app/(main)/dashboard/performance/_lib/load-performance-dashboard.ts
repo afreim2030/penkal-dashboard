@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface PerformanceRow {
   sku: string | null;
-  productName: string | null;
+  title: string | null;
   mlb: string | null;
   visits: number;
   sales: number;
