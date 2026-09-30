@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { BookOpenCheck, LogOut, Store } from "lucide-react";
 
@@ -23,19 +22,6 @@ import { NavMain } from "./nav-main";
 
 export function AppSidebar({ accounts, activeAccountId, ...props }: React.ComponentProps<typeof Sidebar> & { accounts: MarketplaceAccount[]; activeAccountId: string | null }) {
   const router = useRouter();
-  const [switchError, setSwitchError] = useState<string | null>(null);
-
-  async function selectAccount(accountId: string) {
-    if (accountId === activeAccountId) return;
-    setSwitchError(null);
-    const supabase = createClient();
-    const { error } = await supabase.rpc("set_active_marketplace_account", { p_account_id: accountId });
-    if (error) {
-      setSwitchError("Não foi possível trocar a conta.");
-      return;
-    }
-    window.location.reload();
-  }
 
   async function signOut() {
     const supabase = createClient();
@@ -67,18 +53,18 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
       <SidebarContent>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
           <p className="mb-1 px-2 text-muted-foreground text-xs">Conta ativa</p>
-          <div className="flex items-center gap-2 rounded-md border bg-background px-2">
+          <div className="flex flex-col gap-1 rounded-md border bg-background p-1">
             <Store className="size-3.5 shrink-0 text-muted-foreground" />
-            <select
-              aria-label="Conta ativa"
-              className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none"
-              value={activeAccountId ?? ""}
-              onChange={(event) => selectAccount(event.target.value)}
-            >
-              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-            </select>
+            {accounts.map((account) => (
+              <a
+                key={account.id}
+                href={`/api/contas/selecionar?account=${account.id}&next=/dashboard/default`}
+                className={`rounded px-2 py-1.5 text-sm ${account.id === activeAccountId ? "bg-accent font-medium" : "hover:bg-accent/60"}`}
+              >
+                {account.name}
+              </a>
+            ))}
           </div>
-          {switchError ? <p className="mt-1 px-2 text-destructive text-xs">{switchError}</p> : null}
         </div>
         <NavMain items={sidebarItems} />
       </SidebarContent>
@@ -96,3 +82,27 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
     </Sidebar>
   );
 }
+
+@@@
+import { NextRequest, NextResponse } from "next/server";
+
+import { createClient } from "@/lib/supabase/server";
+
+export async function GET(request: NextRequest) {
+  const accountId = request.nextUrl.searchParams.get("account");
+  const next = request.nextUrl.searchParams.get("next") ?? "/dashboard/default";
+  const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/dashboard/default";
+
+  if (!accountId) return NextResponse.redirect(new URL(safeNext, request.url));
+
+  const supabase = await createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return NextResponse.redirect(new URL("/auth/v1/login", request.url));
+
+  const { error } = await supabase.rpc("set_active_marketplace_account", { p_account_id: accountId });
+  if (error) return NextResponse.redirect(new URL(`${safeNext}?account-error=1`, request.url));
+
+  return NextResponse.redirect(new URL(safeNext, request.url));
+}
+
+@@@
