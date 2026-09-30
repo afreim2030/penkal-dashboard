@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { type ParsedSaleRow, parseSalesExportedAt, parseSalesXlsx } from "./parse-sales-xlsx";
-import type { SalesImportFileResult, SalesImportProblem, SalesImportResult } from "./sales-import-types";
+import type { SalesExportedAtSource, SalesImportFileResult, SalesImportProblem, SalesImportResult } from "./sales-import-types";
 import { createHash } from "node:crypto";
 
 const PROBLEM_LIMIT = 10;
@@ -31,7 +31,7 @@ interface PreparedFile {
   fileHash: string;
   importRecord: ImportRecord;
   sourceExportedAt: string | null;
-  sourceExportedAtSource: "filename" | "unknown";
+  sourceExportedAtSource: SalesExportedAtSource;
   parsed: ReturnType<typeof parseSalesXlsx>;
   validRows: ParsedSaleRow[];
   problems: SalesImportProblem[];
@@ -305,8 +305,9 @@ export async function importSales(input: ImportSalesInput): Promise<SalesImportR
 
   for (const file of input.files) {
     const fileHash = salesFileHash(file.buffer);
-    const sourceExportedAt = parseSalesExportedAt(file.fileName);
-    const sourceExportedAtSource = sourceExportedAt ? "filename" : "unknown";
+    const exportedAtFromFilename = parseSalesExportedAt(file.fileName);
+    // Arquivos renomeados não trazem data no nome. Nessa situação, a própria importação\n    // é a referência mais recente disponível para comparar versões com segurança.\n    const sourceExportedAt = exportedAtFromFilename ?? new Date().toISOString();
+    const sourceExportedAtSource: SalesExportedAtSource = exportedAtFromFilename ? "filename" : "import_time";
     const { record, blocked } = await startImport(
       input.supabase,
       file,
