@@ -20,6 +20,8 @@ const HEADER_ALIASES = {
     "vendas ultimos 30 dias (un.)",
     "vendas ultimos 30 dias",
     "unidades vendidas ultimos 30 dias",
+    "unidades vendidas ult. 30 dias",
+    "unidades vendidas ult 30 dias",
     "unidades vendidas ultimos 30 dias (un.)",
     "vendas 30 dias",
     "vendas (30d)",
