@@ -56,7 +56,7 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline">{status}</Badge>;
 }
 
-type SortKey = "revenue" | "units" | "fullStock" | "visits" | "conversion" | "daysWithoutSale" | "stockTime";
+type SortKey = "revenue" | "units" | "fullStock" | "visits" | "conversion" | "daysWithoutSale" | "trend" | "stockTime";
 
 function daysWithoutSale(row: ProductDashboardRow): string {
   if (row.daysSinceSale === null) return "Sem venda";
@@ -107,6 +107,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
       if (sort === "visits") return row.visits7 ?? -1;
       if (sort === "conversion") return row.conversion7 ?? -1;
       if (sort === "daysWithoutSale") return row.daysSinceSale ?? Number.MAX_SAFE_INTEGER;
+      if (sort === "trend") return row.trend7 ?? -Infinity;
       return row.stockTimeAffected;
     };
     return [...data.products].sort((left, right) => {
@@ -196,7 +197,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                 <SortHeader label="Visitas 7d" value="visits" active={sort} direction={direction} onChange={changeSort} />
                 <SortHeader label="Conversão" value="conversion" active={sort} direction={direction} onChange={changeSort} />
                 <SortHeader label="Sem vender" value="daysWithoutSale" active={sort} direction={direction} onChange={changeSort} />
-                <TableHead className="text-right">Tendência 7d</TableHead>
+                <SortHeader label="Tendência 7d" value="trend" active={sort} direction={direction} onChange={changeSort} />
                 <SortHeader label="Tempo estoque" value="stockTime" active={sort} direction={direction} onChange={changeSort} />
               </TableRow>
             </TableHeader>
