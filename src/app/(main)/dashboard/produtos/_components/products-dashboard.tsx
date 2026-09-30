@@ -2,12 +2,11 @@
 
 import { useMemo, useState } from "react";
 
-import { ArrowDownRight, ArrowUpRight, Info, Minus } from "lucide-react";
+import { ArrowDownRight, ArrowDownUp, ArrowUpRight, Info, Minus } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { ProductDashboardRow, ProductsDashboardData } from "../_lib/load-products-dashboard";
@@ -65,10 +64,41 @@ function daysWithoutSale(row: ProductDashboardRow): string {
   return `${integer.format(row.daysSinceSale)} dias`;
 }
 
+function SortHeader({
+  label,
+  value,
+  active,
+  direction,
+  onChange,
+}: {
+  label: string;
+  value: SortKey;
+  active: SortKey;
+  direction: "asc" | "desc";
+  onChange: (value: SortKey) => void;
+}) {
+  return (
+    <TableHead className="text-right">
+      <button className="inline-flex items-center gap-1 font-medium hover:text-foreground" onClick={() => onChange(value)}>
+        {label}
+        <ArrowDownUp className={active === value ? "size-3 text-foreground" : "size-3"} />
+        {active === value ? <span className="sr-only">{direction === "desc" ? "maior para menor" : "menor para maior"}</span> : null}
+      </button>
+    </TableHead>
+  );
+}
+
 export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
   const periodLabel = `${data.asOf.salesDaysAvailable} dia${data.asOf.salesDaysAvailable === 1 ? "" : "s"} completos disponíveis`;
   const [sort, setSort] = useState<SortKey>("revenue");
   const [direction, setDirection] = useState<"desc" | "asc">("desc");
+  const changeSort = (next: SortKey) => {
+    if (next === sort) setDirection((current) => (current === "desc" ? "asc" : "desc"));
+    else {
+      setSort(next);
+      setDirection("desc");
+    }
+  };
   const sortedProducts = useMemo(() => {
     const value = (row: ProductDashboardRow) => {
       if (sort === "revenue") return row.revenuePeriod;
@@ -145,28 +175,6 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
         </Card>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
-          <SelectTrigger><SelectValue placeholder="Ordenar por" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="revenue">Faturamento</SelectItem>
-            <SelectItem value="units">Unidades vendidas</SelectItem>
-            <SelectItem value="fullStock">Estoque FULL</SelectItem>
-            <SelectItem value="visits">Visitas 7d</SelectItem>
-            <SelectItem value="conversion">Conversão</SelectItem>
-            <SelectItem value="daysWithoutSale">Dias sem vender</SelectItem>
-            <SelectItem value="stockTime">Impacto no tempo de estoque</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={direction} onValueChange={(value) => setDirection(value as "asc" | "desc")}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="desc">Maior para o menor</SelectItem>
-            <SelectItem value="asc">Menor para o maior</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Catálogo consolidado</CardTitle>
@@ -182,14 +190,14 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                 <TableHead className="w-24">SKU</TableHead>
                 <TableHead className="min-w-[280px]">Produto</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">FULL</TableHead>
-                <TableHead className="text-right">Vendidas</TableHead>
-                <TableHead className="text-right">Faturamento</TableHead>
-                <TableHead className="text-right">Visitas 7d</TableHead>
-                <TableHead className="text-right">Conversão</TableHead>
-                <TableHead className="text-right">Sem vender</TableHead>
+                <SortHeader label="FULL" value="fullStock" active={sort} direction={direction} onChange={changeSort} />
+                <SortHeader label="Vendidas" value="units" active={sort} direction={direction} onChange={changeSort} />
+                <SortHeader label="Faturamento" value="revenue" active={sort} direction={direction} onChange={changeSort} />
+                <SortHeader label="Visitas 7d" value="visits" active={sort} direction={direction} onChange={changeSort} />
+                <SortHeader label="Conversão" value="conversion" active={sort} direction={direction} onChange={changeSort} />
+                <SortHeader label="Sem vender" value="daysWithoutSale" active={sort} direction={direction} onChange={changeSort} />
                 <TableHead className="text-right">Tendência 7d</TableHead>
-                <TableHead className="text-right">Tempo estoque</TableHead>
+                <SortHeader label="Tempo estoque" value="stockTime" active={sort} direction={direction} onChange={changeSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
