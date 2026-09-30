@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { BookOpenCheck, LogOut, Store } from "lucide-react";
 
@@ -17,18 +18,23 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { MarketplaceAccount } from "@/lib/marketplace-accounts";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 import { NavMain } from "./nav-main";
 
 export function AppSidebar({ accounts, activeAccountId, ...props }: React.ComponentProps<typeof Sidebar> & { accounts: MarketplaceAccount[]; activeAccountId: string | null }) {
   const router = useRouter();
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   async function selectAccount(accountId: string) {
     if (accountId === activeAccountId) return;
+    setSwitchError(null);
     const supabase = createClient();
     const { error } = await supabase.rpc("set_active_marketplace_account", { p_account_id: accountId });
-    if (!error) window.location.reload();
+    if (error) {
+      setSwitchError("Não foi possível trocar a conta.");
+      return;
+    }
+    window.location.reload();
   }
 
   async function signOut() {
@@ -61,12 +67,18 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
       <SidebarContent>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
           <p className="mb-1 px-2 text-muted-foreground text-xs">Conta ativa</p>
-          <Select value={activeAccountId ?? undefined} onValueChange={selectAccount}>
-            <SelectTrigger className="w-full"><Store className="size-3.5" /><SelectValue placeholder="Selecione a conta" /></SelectTrigger>
-            <SelectContent>
-              {accounts.map((account) => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2 rounded-md border bg-background px-2">
+            <Store className="size-3.5 shrink-0 text-muted-foreground" />
+            <select
+              aria-label="Conta ativa"
+              className="h-8 min-w-0 flex-1 bg-transparent text-sm outline-none"
+              value={activeAccountId ?? ""}
+              onChange={(event) => selectAccount(event.target.value)}
+            >
+              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select>
+          </div>
+          {switchError ? <p className="mt-1 px-2 text-destructive text-xs">{switchError}</p> : null}
         </div>
         <NavMain items={sidebarItems} />
       </SidebarContent>
