@@ -158,7 +158,7 @@ export async function importListings({
     if (firstRowBySku.size > 0) {
       const { error } = await supabase.from("products").upsert(
         [...firstRowBySku.values()].map((row) => ({ sku: row.sku, name: row.title })),
-        { onConflict: "sku", ignoreDuplicates: true },
+        { onConflict: "account_id,sku", ignoreDuplicates: true },
       );
       if (error) throw new Error("Não foi possível identificar os produtos do arquivo.");
     }
@@ -197,7 +197,7 @@ export async function importListings({
           status: row.status,
           current_price: row.price,
         },
-        { onConflict: "mlb" },
+        { onConflict: "account_id,mlb" },
       );
 
       if (error) {
