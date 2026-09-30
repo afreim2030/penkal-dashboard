@@ -1,3 +1,8 @@
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
@@ -37,6 +42,11 @@ function PeriodCard({ title, period }: { title: string; period: PerformancePerio
   );
 }
 function Ranking({ title, description, rows }: { title: string; description: string; rows: PerformanceRow[] }) {
+  const pageSize = 10;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(rows.length / pageSize);
+  const visibleRows = rows.slice(page * pageSize, (page + 1) * pageSize);
+
   return (
     <Card>
       <CardHeader>
@@ -54,7 +64,7 @@ function Ranking({ title, description, rows }: { title: string; description: str
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.slice(0, 10).map((row, index) => (
+            {visibleRows.map((row, index) => (
               <TableRow key={`${row.sku ?? "sem-sku"}-${row.mlb ?? index}`}>
                 <TableCell>
                   <div className="max-w-[28rem] truncate font-medium" title={row.title ?? undefined}>
@@ -71,6 +81,19 @@ function Ranking({ title, description, rows }: { title: string; description: str
             ))}
           </TableBody>
         </Table>
+        {pageCount > 1 ? (
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <span className="text-muted-foreground text-xs">Página {page + 1} de {pageCount}</span>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((current) => current - 1)}>
+                Anterior
+              </Button>
+              <Button variant="outline" size="sm" disabled={page >= pageCount - 1} onClick={() => setPage((current) => current + 1)}>
+                Próxima
+              </Button>
+            </div>
+          </div>
+        ) : null}
         {rows.length === 0 ? <p className="text-muted-foreground text-sm">Nenhum anúncio encontrado.</p> : null}
       </CardContent>
     </Card>
