@@ -27,9 +27,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
   async function selectAccount(accountId: string) {
     if (accountId === activeAccountId) return;
     const supabase = createClient();
-    const { data } = await supabase.auth.getUser();
-    if (!data.user) return;
-    const { error } = await supabase.from("user_active_marketplace_accounts").upsert({ user_id: data.user.id, account_id: accountId, updated_at: new Date().toISOString() });
+    const { error } = await supabase.rpc("set_active_marketplace_account", { p_account_id: accountId });
     if (!error) router.refresh();
   }
 
