@@ -76,7 +76,7 @@ export function salesRetryMessage(status: ImportStatus): string | null {
 function emptyFileResult(
   fileName: string,
   sourceExportedAt: string | null,
-  sourceExportedAtSource: "filename" | "unknown",
+  sourceExportedAtSource: SalesExportedAtSource,
   message: string,
   duplicate: boolean,
 ): SalesImportFileResult {
@@ -106,7 +106,7 @@ async function startImport(
   file: SalesFileInput,
   fileHash: string,
   sourceExportedAt: string | null,
-  sourceExportedAtSource: "filename" | "unknown",
+  sourceExportedAtSource: SalesExportedAtSource,
   userId: string,
 ): Promise<{ record: ImportRecord | null; blocked: SalesImportFileResult | null }> {
   const metadata = {
