@@ -3,7 +3,7 @@ export interface SalesImportProblem {
   message: string;
 }
 
-export type SalesExportedAtSource = "filename" | "report_header" | "user_confirmed" | "unknown";
+export type SalesExportedAtSource = "filename" | "report_header" | "user_confirmed" | "import_time" | "unknown";
 
 export interface SalesImportFileResult {
   fileName: string;
