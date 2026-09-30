@@ -109,7 +109,14 @@ function isoDate(day: string, monthName: string, year: string): string | null {
   return `${yearNumber}-${String(month).padStart(2, "0")}-${String(dayNumber).padStart(2, "0")}`;
 }
 
-function reportPeriod(rows: CellValue[][]): { start: string; end: string } | null {
+function reportPeriod(rows: CellValue[][], fileName?: string): { start: string; end: string } | null {
+  const fileMatch = fileName?.match(/(20\\d{2})[_-](\\d{2})[_-](\\d{2})[-_](20\\d{2})[_-](\\d{2})[_-](\\d{2})/);
+  if (fileMatch) {
+    return {
+      start: `${fileMatch[1]}-${fileMatch[2]}-${fileMatch[3]}`,
+      end: `${fileMatch[4]}-${fileMatch[5]}-${fileMatch[6]}`,
+    };
+  }
   const scope = rows
     .slice(0, 6)
     .flat()
@@ -147,7 +154,10 @@ function workbookRows(workbook: WorkBook): CellValue[][] {
 }
 
 function headerIndexes(row: CellValue[]): Map<string, number> {
-  return new Map(row.map((value, index) => [normalize(value), index]));
+  const indexes = new Map(row.map((value, index) => [normalize(value), index]));
+  const grossSales = indexes.get(normalize("Vendas brutas (ARS)"));
+  if (grossSales !== undefined) indexes.set(normalize("Vendas brutas (BRL)"), grossSales);
+  return indexes;
 }
 
 function field(row: CellValue[], indexes: Map<string, number>, header: string): CellValue {
@@ -163,9 +173,9 @@ function rowHash(row: Omit<ParsedPerformanceRow, "line" | "sourceRowHash">): str
   return createHash("sha256").update(JSON.stringify(row)).digest("hex");
 }
 
-export function parsePerformanceWorkbook(workbook: WorkBook): ParsedPerformanceFile {
+export function parsePerformanceWorkbook(workbook: WorkBook, fileName?: string): ParsedPerformanceFile {
   const rows = workbookRows(workbook);
-  const period = reportPeriod(rows);
+  const period = reportPeriod(rows, fileName);
   if (!period) throw new Error("Não foi possível identificar o período do relatório de desempenho.");
 
   const headerLine = rows.findIndex((row) =>
@@ -213,6 +223,6 @@ export function parsePerformanceWorkbook(workbook: WorkBook): ParsedPerformanceF
   return { periodStart: period.start, periodEnd: period.end, rows: parsed, problems };
 }
 
-export function parsePerformanceXlsx(buffer: Buffer): ParsedPerformanceFile {
-  return parsePerformanceWorkbook(read(buffer, { type: "buffer", cellDates: true }));
+export function parsePerformanceXlsx(buffer: Buffer, fileName?: string): ParsedPerformanceFile {
+  return parsePerformanceWorkbook(read(buffer, { type: "buffer", cellDates: true }), fileName);
 }
