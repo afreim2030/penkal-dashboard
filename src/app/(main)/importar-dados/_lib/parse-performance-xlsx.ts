@@ -110,7 +110,7 @@ function isoDate(day: string, monthName: string, year: string): string | null {
 }
 
 function reportPeriod(rows: CellValue[][], fileName?: string): { start: string; end: string } | null {
-  const fileMatch = fileName?.match(/(20\\d{2})[_-](\\d{2})[_-](\\d{2})[-_](20\\d{2})[_-](\\d{2})[_-](\\d{2})/);
+  const fileMatch = fileName?.match(/(20\d{2})[_-](\d{2})[_-](\d{2})[-_](20\d{2})[_-](\d{2})[_-](\d{2})/);
   if (fileMatch) {
     return {
       start: `${fileMatch[1]}-${fileMatch[2]}-${fileMatch[3]}`,
