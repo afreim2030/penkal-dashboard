@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import { BookOpenCheck, LogOut, Store } from "lucide-react";
 
@@ -22,11 +23,36 @@ import { NavMain } from "./nav-main";
 
 export function AppSidebar({ accounts, activeAccountId, ...props }: React.ComponentProps<typeof Sidebar> & { accounts: MarketplaceAccount[]; activeAccountId: string | null }) {
   const router = useRouter();
+  const [selectedAccountId, setSelectedAccountId] = useState(activeAccountId);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   async function signOut() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.replace("/auth/v1/login");
+    router.refresh();
+  }
+
+  async function switchAccount(accountId: string) {
+    if (accountId === selectedAccountId || isSwitching) return;
+
+    setIsSwitching(true);
+    setSwitchError(null);
+
+    const supabase = createClient();
+    const { error } = await supabase.rpc("set_active_marketplace_account", {
+      p_account_id: accountId,
+    });
+
+    if (error) {
+      setSwitchError("Não foi possível trocar a conta. Tente novamente.");
+      setIsSwitching(false);
+      return;
+    }
+
+    setSelectedAccountId(accountId);
+    setIsSwitching(false);
     router.refresh();
   }
 
@@ -56,14 +82,17 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
           <div className="flex flex-col gap-1 rounded-md border bg-background p-1">
             <Store className="size-3.5 shrink-0 text-muted-foreground" />
             {accounts.map((account) => (
-              <a
+              <button
                 key={account.id}
-                href={`/api/contas/selecionar?account=${account.id}&next=/dashboard/default`}
-                className={`rounded px-2 py-1.5 text-sm ${account.id === activeAccountId ? "bg-accent font-medium" : "hover:bg-accent/60"}`}
+                type="button"
+                disabled={isSwitching}
+                onClick={() => switchAccount(account.id)}
+                className={`rounded px-2 py-1.5 text-left text-sm disabled:cursor-wait disabled:opacity-60 ${account.id === selectedAccountId ? "bg-accent font-medium" : "hover:bg-accent/60"}`}
               >
                 {account.name}
-              </a>
+              </button>
             ))}
+            {switchError ? <p className="px-2 pb-1 text-xs text-destructive">{switchError}</p> : null}
           </div>
         </div>
         <NavMain items={sidebarItems} />
