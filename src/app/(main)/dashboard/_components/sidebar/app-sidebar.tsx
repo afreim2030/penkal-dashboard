@@ -28,7 +28,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
     if (accountId === activeAccountId) return;
     const supabase = createClient();
     const { error } = await supabase.rpc("set_active_marketplace_account", { p_account_id: accountId });
-    if (!error) router.refresh();
+    if (!error) window.location.reload();
   }
 
   async function signOut() {
