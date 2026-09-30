@@ -1,8 +1,13 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
 import { ArrowDownRight, ArrowUpRight, Info, Minus } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { ProductDashboardRow, ProductsDashboardData } from "../_lib/load-products-dashboard";
@@ -52,6 +57,8 @@ function StatusBadge({ status }: { status: string }) {
   return <Badge variant="outline">{status}</Badge>;
 }
 
+type SortKey = "revenue" | "units" | "fullStock" | "visits" | "conversion" | "daysWithoutSale" | "stockTime";
+
 function daysWithoutSale(row: ProductDashboardRow): string {
   if (row.daysSinceSale === null) return "Sem venda";
   if (row.daysSinceSale === 0) return "0 dias";
@@ -60,6 +67,23 @@ function daysWithoutSale(row: ProductDashboardRow): string {
 
 export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
   const periodLabel = `${data.asOf.salesDaysAvailable} dia${data.asOf.salesDaysAvailable === 1 ? "" : "s"} completos disponíveis`;
+  const [sort, setSort] = useState<SortKey>("revenue");
+  const [direction, setDirection] = useState<"desc" | "asc">("desc");
+  const sortedProducts = useMemo(() => {
+    const value = (row: ProductDashboardRow) => {
+      if (sort === "revenue") return row.revenuePeriod;
+      if (sort === "units") return row.unitsPeriod;
+      if (sort === "fullStock") return row.fullStock;
+      if (sort === "visits") return row.visits7 ?? -1;
+      if (sort === "conversion") return row.conversion7 ?? -1;
+      if (sort === "daysWithoutSale") return row.daysSinceSale ?? Number.MAX_SAFE_INTEGER;
+      return row.stockTimeAffected;
+    };
+    return [...data.products].sort((left, right) => {
+      const result = value(left) - value(right);
+      return direction === "desc" ? -result : result;
+    });
+  }, [data.products, direction, sort]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -121,6 +145,28 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
         </Card>
       </div>
 
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+          <SelectTrigger><SelectValue placeholder="Ordenar por" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="revenue">Faturamento</SelectItem>
+            <SelectItem value="units">Unidades vendidas</SelectItem>
+            <SelectItem value="fullStock">Estoque FULL</SelectItem>
+            <SelectItem value="visits">Visitas 7d</SelectItem>
+            <SelectItem value="conversion">Conversão</SelectItem>
+            <SelectItem value="daysWithoutSale">Dias sem vender</SelectItem>
+            <SelectItem value="stockTime">Impacto no tempo de estoque</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={direction} onValueChange={(value) => setDirection(value as "asc" | "desc")}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="desc">Maior para o menor</SelectItem>
+            <SelectItem value="asc">Menor para o maior</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Catálogo consolidado</CardTitle>
@@ -147,7 +193,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.products.map((row) => (
+              {sortedProducts.map((row) => (
                 <TableRow key={row.sku}>
                   <TableCell className="font-medium tabular-nums">{row.sku}</TableCell>
                   <TableCell>
