@@ -156,20 +156,11 @@ export async function importFullInventory(input: ImportFullInventoryInput): Prom
     rowCount = parsed.rowCount;
     const problems: FullImportProblem[] = [...parsed.problems];
     const skus = [...new Set(parsed.rows.map((row) => row.skuRaw))];
-    const mlbs = [...new Set(parsed.rows.flatMap((row) => row.mlbs))];
     const { data: products, error: productsError } = skus.length
       ? await input.supabase.from("products").select("id, sku").in("sku", skus)
       : { data: [], error: null };
     if (productsError) throw new Error("Não foi possível consultar os produtos.");
-    const { data: listings, error: listingsError } = mlbs.length
-      ? await input.supabase.from("listings").select("id, mlb").in("mlb", mlbs)
-      : { data: [], error: null };
-    if (listingsError) throw new Error("Não foi possível consultar os anúncios.");
-
     const productIds = new Map((products ?? []).map((product) => [product.sku, product.id]));
-    const listingIds = new Map((listings ?? []).map((listing) => [listing.mlb, listing.id]));
-    const knownMlbs = new Set(listingIds.keys());
-    const unidentifiedMlbValues = mlbs.filter((mlb) => !knownMlbs.has(mlb));
     const snapshotAt = record.created_at;
     let identifiedSkus = 0;
     let unidentifiedSkus = 0;
@@ -183,18 +174,12 @@ export async function importFullInventory(input: ImportFullInventoryInput): Prom
         unidentifiedSkus += 1;
         problems.push({ line: row.line, message: `SKU não identificado: ${row.skuRaw}`, severity: "warning" });
       }
-      for (const mlb of row.mlbs) {
-        if (!knownMlbs.has(mlb)) {
-          problems.push({ line: row.line, message: `MLB não identificado: ${mlb}`, severity: "warning" });
-        }
-      }
-
       const { error } = await input.supabase.from("full_inventory_snapshots").insert(
         fullInventorySnapshotRow(row, {
           importId: record.id,
           snapshotAt,
           productId,
-          listingId: row.mlbs.length === 1 ? (listingIds.get(row.mlbs[0]) ?? null) : null,
+          listingId: null,
           sourceFile: input.fileName,
         }),
       );
@@ -220,8 +205,8 @@ export async function importFullInventory(input: ImportFullInventoryInput): Prom
       recordsProcessed: rowCount,
       identifiedSkus,
       unidentifiedSkus,
-      identifiedMlbs: mlbs.length - unidentifiedMlbValues.length,
-      unidentifiedMlbs: unidentifiedMlbValues.length,
+      identifiedMlbs: 0,
+      unidentifiedMlbs: 0,
       positiveStockSkus: parsed.rows.filter((row) => row.quantityFull > 0).length,
       zeroStockSkus: parsed.rows.filter((row) => row.quantityFull === 0).length,
       totalQuantityFull: parsed.rows.reduce((total, row) => total + row.quantityFull, 0),
