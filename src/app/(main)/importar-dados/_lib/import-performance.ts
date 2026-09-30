@@ -89,7 +89,7 @@ async function processFile(
     };
   }
 
-  const parsed = parsePerformanceXlsx(file.buffer);
+  const parsed = parsePerformanceXlsx(file.buffer, file.fileName);
   let importId = existing?.id as string | undefined;
 
   if (importId) {
