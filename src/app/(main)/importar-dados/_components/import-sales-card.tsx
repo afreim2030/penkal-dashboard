@@ -213,7 +213,9 @@ export function ImportSalesCard() {
                       Período: {fileResult.periodStart ?? "não encontrado"} — {fileResult.periodEnd ?? "não encontrado"}
                     </p>
                     <p className="text-muted-foreground">
-                      Exportado em: {fileResult.sourceExportedAt ?? "não informado"}
+                      {fileResult.sourceExportedAtSource === "import_time"
+                        ? `Referência: importado em ${fileResult.sourceExportedAt}`
+                        : `Exportado em: ${fileResult.sourceExportedAt ?? "não informado"}`}
                     </p>
                     <p>
                       Novas {fileResult.insertedRows} · Atualizadas {fileResult.updatedRows} · Duplicadas{" "}
