@@ -4,8 +4,15 @@ import { AppSidebar } from "@/app/(main)/dashboard/_components/sidebar/app-sideb
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-import { ThemeSwitcher } from "./_components/header/theme-switcher";
 import { getMarketplaceAccounts } from "@/lib/marketplace-accounts";
+
+import { switchMarketplaceAccount } from "./_actions/switch-marketplace-account";
+import { ThemeSwitcher } from "./_components/header/theme-switcher";
+
+const accountButtons = [
+  { id: "5ec7156d-4899-4e99-bd79-e9ff7056c522", label: "CONTA 1" },
+  { id: "8c5756df-727c-4993-b85c-ae18714aa004", label: "CONTA 2" },
+];
 
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const { accounts, activeAccountId } = await getMarketplaceAccounts();
@@ -29,6 +36,18 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
                 className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
               />
               <span className="hidden font-medium text-sm sm:inline">Operação Mercado Livre</span>
+              <div className="ml-1 flex items-center gap-1">
+                {accountButtons.map((account) => (
+                  <form key={account.id} action={switchMarketplaceAccount.bind(null, account.id)}>
+                    <button
+                      type="submit"
+                      className={`rounded-md border px-2 py-1 font-semibold text-xs ${account.id === activeAccountId ? "border-amber-400 bg-amber-100 text-slate-950" : "bg-background hover:bg-accent"}`}
+                    >
+                      {account.label}
+                    </button>
+                  </form>
+                ))}
+              </div>
             </div>
             <ThemeSwitcher />
           </div>
