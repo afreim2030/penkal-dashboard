@@ -23,6 +23,7 @@ import { NavMain } from "./nav-main";
 
 export function AppSidebar({ accounts, activeAccountId, ...props }: React.ComponentProps<typeof Sidebar> & { accounts: MarketplaceAccount[]; activeAccountId: string | null }) {
   const router = useRouter();
+  const activeAccountLabel = activeAccountId === accounts[0]?.id ? "PENKAL" : activeAccountId === accounts[1]?.id ? "SÃO PAULO" : "—";
 
   async function signOut() {
     const supabase = createClient();
@@ -53,7 +54,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
 
       <SidebarContent>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
-          <p className="mb-1 px-2 text-muted-foreground text-xs">Dados visualizados</p>
+          <p className="mb-1 px-2 text-muted-foreground text-xs">Dados visualizados: {activeAccountLabel}</p>
           <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
             <Store className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
             {accounts.slice(0, 2).map((account, index) => (
