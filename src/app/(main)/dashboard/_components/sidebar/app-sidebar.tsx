@@ -59,16 +59,16 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
 
       <SidebarContent>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
-          <p className="mb-1 px-2 text-muted-foreground text-xs">Dados visualizados: {activeAccountLabel}</p>
+          <p className="mb-2 px-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400">✓ VISUALIZANDO: {activeAccountLabel}</p>
           <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
             <Store className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
             {accountButtons.map((account) => (
               <form key={account.id} action={switchMarketplaceAccount.bind(null, account.id)}>
                 <button
                   type="submit"
-                  className={`w-full rounded-md border px-3 py-2 text-left text-sm ${account.id === activeAccountId ? "border-amber-400 bg-amber-50 font-semibold text-slate-950 dark:bg-amber-950/30 dark:text-amber-100" : "bg-background hover:bg-accent"}`}
+                  className={`w-full rounded-md border px-3 py-2 text-left text-sm font-semibold ${account.id === activeAccountId ? "border-emerald-500 bg-emerald-600 text-white shadow-sm hover:bg-emerald-600" : "bg-background text-muted-foreground hover:bg-accent hover:text-foreground"}`}
                 >
-                  {account.label}
+                  {account.id === activeAccountId ? `✓ ${account.label} — VISUALIZANDO` : account.label}
                 </button>
               </form>
             ))}
