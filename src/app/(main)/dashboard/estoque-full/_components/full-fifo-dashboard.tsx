@@ -43,16 +43,26 @@ const BUCKETS: { key: FullFifoBucketKey; label: string }[] = [
 ];
 
 type SortKey =
-  | "quantity"
-  | "average_age"
-  | "units_90_plus"
-  | "units_180_plus"
-  | "unknown"
-  | "stock_time"
-  | "sold"
-  | "average_daily"
-  | "days_low"
-  | "days_high";
+  | "sku"
+  | "product_name"
+  | "quantity_full"
+  | "velocity_status"
+  | "sold_units_available_period"
+  | "average_daily_sales_available_period"
+  | "days_of_stock_available_period"
+  | "sold_units_7d"
+  | "average_daily_sales_7d"
+  | "days_of_stock_7d"
+  | "sold_units_14d"
+  | "days_of_stock_14d"
+  | "sold_units_30d"
+  | "days_of_stock_30d"
+  | "sales_velocity_change_percentage"
+  | "weighted_average_age_days"
+  | "oldest_known_remaining_received_at"
+  | "coverage_percentage"
+  | FullFifoBucketKey
+  | "units_affect_stock_time";
 type DemandFilter = "all" | "with_sale" | "without_sale" | "out_of_stock_demand";
 type DaysFilter = "all" | "0_7" | "8_15" | "16_30" | "31_60" | "61_90" | "91_plus";
 
@@ -68,17 +78,10 @@ function metric(value: string, label: string, description?: string) {
   );
 }
 
-function sortableValue(row: FullFifoVelocitySkuAnalysis, sort: SortKey): number {
-  if (sort === "average_age") return row.weighted_average_age_days ?? -1;
-  if (sort === "units_90_plus") return row.units_91_120 + row.units_121_180 + row.units_181_plus;
-  if (sort === "units_180_plus") return row.units_181_plus;
-  if (sort === "unknown") return row.units_unknown;
-  if (sort === "stock_time") return row.units_affect_stock_time;
-  if (sort === "sold") return row.sold_units_available_period;
-  if (sort === "average_daily") return row.average_daily_sales_available_period;
-  if (sort === "days_low" || sort === "days_high")
-    return row.days_of_stock_available_period ?? Number.POSITIVE_INFINITY;
-  return row.quantity_full;
+function sortableValue(row: FullFifoVelocitySkuAnalysis, sort: SortKey): number | string {
+  if (sort === "sku" || sort === "product_name" || sort === "velocity_status") return row[sort] ?? "";
+  if (sort === "oldest_known_remaining_received_at") return row.oldest_known_remaining_received_at ?? "";
+  return row[sort] ?? -1;
 }
 
 function inDaysFilter(days: number | null, filter: DaysFilter): boolean {
@@ -109,6 +112,30 @@ function formatSevenDayStockDays(row: FullFifoVelocitySkuAnalysis): string {
   return row.sold_units_7d === 0 ? "Sem venda no período" : "—";
 }
 
+function SortHeader({
+  label,
+  value,
+  active,
+  direction,
+  onChange,
+}: {
+  label: string;
+  value: SortKey;
+  active: SortKey;
+  direction: "asc" | "desc";
+  onChange: (value: SortKey) => void;
+}) {
+  return (
+    <TableHead>
+      <button className="inline-flex items-center gap-1 whitespace-nowrap font-medium hover:text-foreground" onClick={() => onChange(value)}>
+        {label}
+        <ArrowDownUp className={active === value ? "size-3 text-foreground" : "size-3"} />
+        {active === value ? <span className="sr-only">{direction === "desc" ? "maior para menor" : "menor para maior"}</span> : null}
+      </button>
+    </TableHead>
+  );
+}
+
 export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
   const [sku, setSku] = useState("");
   const [product, setProduct] = useState("");
@@ -119,8 +146,16 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
   const [with90Plus, setWith90Plus] = useState(false);
   const [demandFilter, setDemandFilter] = useState<DemandFilter>("all");
   const [daysFilter, setDaysFilter] = useState<DaysFilter>("all");
-  const [sort, setSort] = useState<SortKey>("quantity");
+  const [sort, setSort] = useState<SortKey>("quantity_full");
+  const [direction, setDirection] = useState<"asc" | "desc">("desc");
   const [selected, setSelected] = useState<FullFifoVelocitySkuAnalysis | null>(null);
+  const changeSort = (next: SortKey) => {
+    if (next === sort) setDirection((current) => (current === "desc" ? "asc" : "desc"));
+    else {
+      setSort(next);
+      setDirection("desc");
+    }
+  };
   const rows = useMemo(() => {
     const normalizedSku = sku.trim().toLocaleLowerCase("pt-BR");
     const normalizedProduct = product.trim().toLocaleLowerCase("pt-BR");
@@ -137,10 +172,13 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
       .filter((row) => matchesDemandFilter(row, demandFilter))
       .filter((row) => inDaysFilter(row.days_of_stock_available_period, daysFilter))
       .sort((left, right) => {
-        const direction = sort === "days_low" ? -1 : 1;
-        return (
-          direction * (sortableValue(right, sort) - sortableValue(left, sort)) || left.sku.localeCompare(right.sku)
-        );
+        const leftValue = sortableValue(left, sort);
+        const rightValue = sortableValue(right, sort);
+        const comparison =
+          typeof leftValue === "string" && typeof rightValue === "string"
+            ? leftValue.localeCompare(rightValue, "pt-BR")
+            : Number(leftValue) - Number(rightValue);
+        return (direction === "desc" ? -comparison : comparison) || left.sku.localeCompare(right.sku);
       });
   }, [
     affectsStockTime,
@@ -148,6 +186,7 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
     data.rows,
     daysFilter,
     demandFilter,
+    direction,
     incompleteCoverage,
     product,
     sku,
@@ -295,23 +334,19 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
             </Field>
             <Field>
               <FieldLabel>Ordenar por</FieldLabel>
-              <Select value={sort} onValueChange={(value) => setSort(value as SortKey)}>
+              <Select value={sort} onValueChange={(value) => changeSort(value as SortKey)}>
                 <SelectTrigger className="w-full">
                   <ArrowDownUp />
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="quantity">Maior estoque</SelectItem>
-                    <SelectItem value="average_age">Maior idade média</SelectItem>
-                    <SelectItem value="units_90_plus">Maior quantidade 90+</SelectItem>
-                    <SelectItem value="units_180_plus">Maior quantidade 180+</SelectItem>
-                    <SelectItem value="unknown">Maior desconhecido</SelectItem>
-                    <SelectItem value="stock_time">Maior impacto no Tempo de estoque</SelectItem>
-                    <SelectItem value="sold">Maior venda no período</SelectItem>
-                    <SelectItem value="average_daily">Maior média diária</SelectItem>
-                    <SelectItem value="days_low">Menor dias de estoque</SelectItem>
-                    <SelectItem value="days_high">Maior dias de estoque</SelectItem>
+                    <SelectItem value="quantity_full">Estoque FULL</SelectItem>
+                    <SelectItem value="weighted_average_age_days">Idade média</SelectItem>
+                    <SelectItem value="units_affect_stock_time">Afeta tempo</SelectItem>
+                    <SelectItem value="sold_units_available_period">Venda no período</SelectItem>
+                    <SelectItem value="average_daily_sales_available_period">Média por dia</SelectItem>
+                    <SelectItem value="days_of_stock_available_period">Dias de estoque</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -394,28 +429,28 @@ export function FullFifoDashboard({ data }: { data: FullFifoAnalysisData }) {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>SKU</TableHead>
-                  <TableHead className="min-w-60">Produto</TableHead>
-                  <TableHead>Estoque FULL</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Venda período</TableHead>
-                  <TableHead>Média/dia</TableHead>
-                  <TableHead>Dias estoque</TableHead>
-                  <TableHead>Venda 7d</TableHead>
-                  <TableHead>Média 7d</TableHead>
-                  <TableHead>Dias 7d</TableHead>
-                  <TableHead>Venda 14d</TableHead>
-                  <TableHead>Dias 14d</TableHead>
-                  <TableHead>Venda 30d</TableHead>
-                  <TableHead>Dias 30d</TableHead>
-                  <TableHead>Tendência</TableHead>
-                  <TableHead>Idade média</TableHead>
-                  <TableHead>Mais antigo</TableHead>
-                  <TableHead>Cobertura</TableHead>
+                  <SortHeader label="SKU" value="sku" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Produto" value="product_name" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Estoque FULL" value="quantity_full" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Status" value="velocity_status" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Venda período" value="sold_units_available_period" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Média/dia" value="average_daily_sales_available_period" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Dias estoque" value="days_of_stock_available_period" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Venda 7d" value="sold_units_7d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Média 7d" value="average_daily_sales_7d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Dias 7d" value="days_of_stock_7d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Venda 14d" value="sold_units_14d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Dias 14d" value="days_of_stock_14d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Venda 30d" value="sold_units_30d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Dias 30d" value="days_of_stock_30d" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Tendência" value="sales_velocity_change_percentage" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Idade média" value="weighted_average_age_days" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Mais antigo" value="oldest_known_remaining_received_at" active={sort} direction={direction} onChange={changeSort} />
+                  <SortHeader label="Cobertura" value="coverage_percentage" active={sort} direction={direction} onChange={changeSort} />
                   {BUCKETS.map(({ key, label }) => (
-                    <TableHead key={key}>{label}</TableHead>
+                    <SortHeader key={key} label={label} value={key} active={sort} direction={direction} onChange={changeSort} />
                   ))}
-                  <TableHead>Afeta tempo</TableHead>
+                  <SortHeader label="Afeta tempo" value="units_affect_stock_time" active={sort} direction={direction} onChange={changeSort} />
                   <TableHead>
                     <span className="sr-only">Detalhes</span>
                   </TableHead>
