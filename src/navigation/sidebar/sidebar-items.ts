@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Link2,
   DollarSign,
+  CirclePause,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -120,6 +121,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Alertas",
         url: "/dashboard/alertas",
         icon: Bell,
+      },
+      {
+        id: "inactive-listings",
+        title: "Anúncios pausados",
+        url: "/dashboard/anuncios-pausados",
+        icon: CirclePause,
       },
       {
         id: "ai",
