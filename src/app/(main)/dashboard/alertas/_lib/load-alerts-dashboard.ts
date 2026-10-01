@@ -32,7 +32,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     alerts.push({ id: `campaign-acos-${campaign.campaignName}`, severity: "warning", category: "Publicidade", title: "ACOS alto: revisar campanha", description: campaign.campaignName, value: `${((campaign.acos ?? 0) * 100).toFixed(1).replace(".", ",")}%`, href: "/dashboard/publicidade" });
   }
   for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20).slice(0, 15)) {
-    alerts.push({ id: `visits-no-sales-${row.mlb ?? row.sku ?? "unknown"}`, severity: "warning", category: "Vendas", title: "Visitas sem vendas", description: `${row.productName ?? row.mlb ?? "Anúncio não vinculado"} · ${row.visits} visitas no período`, value: "0 vendas", href: "/dashboard/performance" });
+    alerts.push({ id: `visits-no-sales-${row.mlb ?? row.sku ?? "unknown"}`, severity: "warning", category: "Vendas", title: "Visitas sem vendas", description: `${row.mlb ?? row.sku ?? "Anúncio não vinculado"} · ${row.visits} visitas no período`, value: "0 vendas", href: "/dashboard/performance" });
   }
 
   if (alerts.length > 0) {
