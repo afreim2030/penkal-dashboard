@@ -71,6 +71,9 @@ export async function loadProductsDashboard(): Promise<ProductsDashboardData | n
   const { data: productRecords, error: productsError } = await supabase.from("products").select("id, sku");
   if (productsError) throw new Error(`Não foi possível calcular o tempo de estoque: ${productsError.message}`);
   const productIds = new Map((productRecords ?? []).map((product) => [product.sku, product.id]));
+  const { data: excluded, error: excludedError } = await supabase.from("products").select("sku").not("excluded_at", "is", null);
+  if (excludedError) throw new Error("Não foi possível carregar anúncios excluídos: " + excludedError.message);
+  const excludedSkus = new Set((excluded ?? []).map((product) => product.sku));
 
   dashboard.products = dashboard.products.map((product) => {
     const full = stockByProduct.get(productIds.get(product.sku) ?? "");
