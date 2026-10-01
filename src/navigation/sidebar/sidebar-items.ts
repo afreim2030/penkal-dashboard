@@ -96,6 +96,7 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/estoque-full",
         icon: Warehouse,
       },
+      { id: "full-replenishment", title: "Reposição FULL", url: "/dashboard/reposicao-full", icon: Warehouse },
       {
         id: "full-inbounds",
         title: "Envios FULL",
