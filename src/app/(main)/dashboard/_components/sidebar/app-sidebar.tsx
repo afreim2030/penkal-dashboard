@@ -53,7 +53,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
 
       <SidebarContent>
         <div className="px-2 pb-2 group-data-[collapsible=icon]:hidden">
-          <p className="mb-1 px-2 text-muted-foreground text-xs">Conta ativa</p>
+          <p className="mb-1 px-2 text-muted-foreground text-xs">Dados visualizados</p>
           <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
             <Store className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
             {accounts.slice(0, 2).map((account, index) => (
@@ -62,7 +62,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
                   type="submit"
                   className={`w-full rounded-md border px-3 py-2 text-left text-sm ${account.id === activeAccountId ? "border-amber-400 bg-amber-50 font-semibold text-slate-950 dark:bg-amber-950/30 dark:text-amber-100" : "bg-background hover:bg-accent"}`}
                 >
-                  CONTA {index + 1}
+                  {index === 0 ? "PENKAL" : "SÃO PAULO"}
                 </button>
               </form>
             ))}
