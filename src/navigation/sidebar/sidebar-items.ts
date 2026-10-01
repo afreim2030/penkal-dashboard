@@ -85,6 +85,12 @@ export const sidebarItems: NavGroup[] = [
         icon: Package,
       },
       {
+        id: "abcde-curve",
+        title: "Curva ABCDE",
+        url: "/dashboard/curva-abcde",
+        icon: BarChart3,
+      },
+      {
         id: "profit",
         title: "Lucro por SKU",
         url: "/dashboard/lucro",
