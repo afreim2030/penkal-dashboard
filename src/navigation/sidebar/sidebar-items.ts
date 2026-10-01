@@ -5,6 +5,7 @@ import {
   Import,
   LayoutDashboard,
   Link2,
+  DollarSign,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -82,6 +83,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Produtos",
         url: "/dashboard/produtos",
         icon: Package,
+      },
+      {
+        id: "profit",
+        title: "Lucro por SKU",
+        url: "/dashboard/lucro",
+        icon: DollarSign,
       },
       {
         id: "full-inventory",
