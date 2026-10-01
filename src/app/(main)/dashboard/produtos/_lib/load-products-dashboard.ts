@@ -76,7 +76,15 @@ export async function loadProductsDashboard(): Promise<ProductsDashboardData | n
     const full = stockByProduct.get(productIds.get(product.sku) ?? "");
     const stockDays = full && full.stock > 0 && full.sales30d > 0 ? Math.ceil((full.stock / full.sales30d) * 30) : null;
     return { ...product, stockDays };
-  });
+  }).filter((product) => !excludedSkus.has(product.sku));
+  dashboard.summary = {
+    products: dashboard.products.length,
+    activeProducts: dashboard.products.filter((product) => product.status === "Ativo").length,
+    withFullStock: dashboard.products.filter((product) => product.fullStock > 0).length,
+    stockTimeAffectedUnits: dashboard.products.reduce((total, product) => total + product.stockTimeAffected, 0),
+    unitsPeriod: dashboard.products.reduce((total, product) => total + product.unitsPeriod, 0),
+    revenuePeriod: dashboard.products.reduce((total, product) => total + product.revenuePeriod, 0),
+  };
 
   return dashboard;
 }
