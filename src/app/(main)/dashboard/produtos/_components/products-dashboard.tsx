@@ -93,6 +93,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
   const periodLabel = `${data.asOf.salesDaysAvailable} dia${data.asOf.salesDaysAvailable === 1 ? "" : "s"} completos disponíveis`;
   const [sort, setSort] = useState<SortKey>("revenue");
   const [direction, setDirection] = useState<"desc" | "asc">("desc");
+  const [onlyFull, setOnlyFull] = useState(false);
   const changeSort = (next: SortKey) => {
     if (next === sort) setDirection((current) => (current === "desc" ? "asc" : "desc"));
     else {
@@ -111,11 +112,11 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
       if (sort === "trend") return row.trend7 ?? -Infinity;
       return row.stockDays ?? -1;
     };
-    return [...data.products].sort((left, right) => {
+    return data.products.filter((row) => !onlyFull || row.fullStock > 0).sort((left, right) => {
       const result = value(left) - value(right);
       return direction === "desc" ? -result : result;
     });
-  }, [data.products, direction, sort]);
+  }, [data.products, direction, onlyFull, sort]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -186,6 +187,22 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setOnlyFull(false)}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${!onlyFull ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              Todos ({integer.format(data.products.length)})
+            </button>
+            <button
+              type="button"
+              onClick={() => setOnlyFull(true)}
+              className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${onlyFull ? "border-primary bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+            >
+              Somente com estoque FULL ({integer.format(data.summary.withFullStock)})
+            </button>
+          </div>
           <Table>
             <TableHeader>
               <TableRow>
@@ -203,7 +220,13 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedProducts.map((row) => (
+              {sortedProducts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={12} className="py-8 text-center text-muted-foreground">
+                    Nenhum produto com estoque FULL no momento.
+                  </TableCell>
+                </TableRow>
+              ) : sortedProducts.map((row) => (
                 <TableRow key={row.sku}>
                   <TableCell className="font-medium tabular-nums">{row.sku}</TableCell>
                   <TableCell>
