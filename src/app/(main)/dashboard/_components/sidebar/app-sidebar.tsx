@@ -21,9 +21,14 @@ import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 import { switchMarketplaceAccount } from "../../_actions/switch-marketplace-account";
 import { NavMain } from "./nav-main";
 
+const accountButtons = [
+  { id: "5ec7156d-4899-4e99-bd79-e9ff7056c522", label: "PENKAL" },
+  { id: "8c5756df-727c-4993-b85c-ae18714aa004", label: "SÃO PAULO" },
+];
+
 export function AppSidebar({ accounts, activeAccountId, ...props }: React.ComponentProps<typeof Sidebar> & { accounts: MarketplaceAccount[]; activeAccountId: string | null }) {
   const router = useRouter();
-  const activeAccountLabel = activeAccountId === accounts[0]?.id ? "PENKAL" : activeAccountId === accounts[1]?.id ? "SÃO PAULO" : "—";
+  const activeAccountLabel = accountButtons.find((account) => account.id === activeAccountId)?.label ?? "—";
 
   async function signOut() {
     const supabase = createClient();
@@ -57,13 +62,13 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
           <p className="mb-1 px-2 text-muted-foreground text-xs">Dados visualizados: {activeAccountLabel}</p>
           <div className="flex flex-col gap-2 rounded-md border bg-background p-2">
             <Store className="ml-1 size-3.5 shrink-0 text-muted-foreground" />
-            {accounts.slice(0, 2).map((account, index) => (
+            {accountButtons.map((account) => (
               <form key={account.id} action={switchMarketplaceAccount.bind(null, account.id)}>
                 <button
                   type="submit"
                   className={`w-full rounded-md border px-3 py-2 text-left text-sm ${account.id === activeAccountId ? "border-amber-400 bg-amber-50 font-semibold text-slate-950 dark:bg-amber-950/30 dark:text-amber-100" : "bg-background hover:bg-accent"}`}
                 >
-                  {index === 0 ? "PENKAL" : "SÃO PAULO"}
+                  {account.label}
                 </button>
               </form>
             ))}
