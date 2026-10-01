@@ -1,4 +1,8 @@
-import { Info } from "lucide-react";
+"use client";
+
+import { useMemo, useState } from "react";
+
+import { ArrowDownUp, Info } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +29,69 @@ function optionalDecimal(value: number | null) {
   return value === null ? "—" : decimal.format(value);
 }
 
+type CampaignSort = "campaignName" | "investment" | "revenue" | "clicks" | "sales" | "acos" | "roas";
+type ListingSort = "mlb" | "title" | "investment" | "revenue" | "sales" | "acos";
+
+function SortHeader<T extends string>({
+  label,
+  value,
+  active,
+  direction,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  active: T;
+  direction: "asc" | "desc";
+  onChange: (value: T) => void;
+}) {
+  return (
+    <TableHead className="text-right">
+      <button className="inline-flex items-center gap-1 font-medium hover:text-foreground" onClick={() => onChange(value)}>
+        {label}
+        <ArrowDownUp className={active === value ? "size-3 text-foreground" : "size-3"} />
+      </button>
+    </TableHead>
+  );
+}
+
 export function AdsDashboard({ data }: { data: AdsDashboardData }) {
+  const [campaignSort, setCampaignSort] = useState<CampaignSort>("investment");
+  const [campaignDirection, setCampaignDirection] = useState<"asc" | "desc">("desc");
+  const [listingSort, setListingSort] = useState<ListingSort>("investment");
+  const [listingDirection, setListingDirection] = useState<"asc" | "desc">("desc");
+  const changeCampaignSort = (next: CampaignSort) => {
+    if (next === campaignSort) setCampaignDirection((current) => (current === "desc" ? "asc" : "desc"));
+    else {
+      setCampaignSort(next);
+      setCampaignDirection("desc");
+    }
+  };
+  const changeListingSort = (next: ListingSort) => {
+    if (next === listingSort) setListingDirection((current) => (current === "desc" ? "asc" : "desc"));
+    else {
+      setListingSort(next);
+      setListingDirection("desc");
+    }
+  };
+  const campaigns = useMemo(
+    () => [...data.campaigns].sort((left, right) => {
+      const leftValue = left[campaignSort] ?? (typeof left[campaignSort] === "string" ? "" : -1);
+      const rightValue = right[campaignSort] ?? (typeof right[campaignSort] === "string" ? "" : -1);
+      const comparison = typeof leftValue === "string" && typeof rightValue === "string" ? leftValue.localeCompare(rightValue, "pt-BR") : Number(leftValue) - Number(rightValue);
+      return campaignDirection === "desc" ? -comparison : comparison;
+    }),
+    [campaignDirection, campaignSort, data.campaigns],
+  );
+  const listings = useMemo(
+    () => [...data.listings].sort((left, right) => {
+      const leftValue = left[listingSort] ?? (typeof left[listingSort] === "string" ? "" : -1);
+      const rightValue = right[listingSort] ?? (typeof right[listingSort] === "string" ? "" : -1);
+      const comparison = typeof leftValue === "string" && typeof rightValue === "string" ? leftValue.localeCompare(rightValue, "pt-BR") : Number(leftValue) - Number(rightValue);
+      return listingDirection === "desc" ? -comparison : comparison;
+    }),
+    [data.listings, listingDirection, listingSort],
+  );
   if (!data.period || data.summary.rows === 0) {
     return (
       <div className="flex flex-col gap-5">
@@ -127,17 +193,17 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Campanha</TableHead>
-                <TableHead className="text-right">Investimento</TableHead>
-                <TableHead className="text-right">Receita</TableHead>
-                <TableHead className="text-right">Cliques</TableHead>
-                <TableHead className="text-right">Vendas</TableHead>
-                <TableHead className="text-right">ACOS</TableHead>
-                <TableHead className="text-right">ROAS</TableHead>
+                <SortHeader label="Campanha" value="campaignName" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="Investimento" value="investment" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="Receita" value="revenue" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="Cliques" value="clicks" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="Vendas" value="sales" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="ACOS" value="acos" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
+                <SortHeader label="ROAS" value="roas" active={campaignSort} direction={campaignDirection} onChange={changeCampaignSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.campaigns.map((row) => (
+              {campaigns.map((row) => (
                 <TableRow key={row.campaignName}>
                   <TableCell className="font-medium">{row.campaignName}</TableCell>
                   <TableCell className="text-right tabular-nums">{currency.format(row.investment)}</TableCell>
@@ -165,16 +231,16 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>MLB</TableHead>
-                <TableHead>Produto</TableHead>
-                <TableHead className="text-right">Investimento</TableHead>
-                <TableHead className="text-right">Receita</TableHead>
-                <TableHead className="text-right">Vendas</TableHead>
-                <TableHead className="text-right">ACOS</TableHead>
+                <SortHeader label="MLB" value="mlb" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Produto" value="title" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Investimento" value="investment" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Receita" value="revenue" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Vendas" value="sales" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="ACOS" value="acos" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data.listings.map((row, index) => (
+              {listings.map((row, index) => (
                 <TableRow key={`${row.mlb ?? "sem-mlb"}-${index}`}>
                   <TableCell className="font-medium">{row.mlb ?? "—"}</TableCell>
                   <TableCell className="max-w-[480px] truncate" title={row.title}>
