@@ -108,7 +108,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
       if (sort === "conversion") return row.conversion7 ?? -1;
       if (sort === "daysWithoutSale") return row.daysSinceSale ?? Number.MAX_SAFE_INTEGER;
       if (sort === "trend") return row.trend7 ?? -Infinity;
-      return row.stockTimeAffected;
+      return row.stockDays ?? -1;
     };
     return [...data.products].sort((left, right) => {
       const result = value(left) - value(right);
@@ -230,11 +230,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                     <Trend value={row.trend7} />
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {row.stockTimeAffected > 0 ? (
-                      <Badge variant="outline">{integer.format(row.stockTimeAffected)} un.</Badge>
-                    ) : (
-                      "—"
-                    )}
+                    {row.fullStock <= 0 ? "—" : row.stockDays === null ? "Sem vendas" : <Badge variant="outline">{integer.format(row.stockDays)} dias</Badge>}
                   </TableCell>
                 </TableRow>
               ))}
