@@ -47,7 +47,7 @@ export function AppSidebar({ accounts, activeAccountId, ...props }: React.Compon
                 </div>
               </Link>
             </SidebarMenuButton>
-          </SidebarMenu>
+          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
 
