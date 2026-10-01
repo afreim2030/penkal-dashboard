@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { ProductDashboardRow, ProductsDashboardData } from "../_lib/load-products-dashboard";
+import { ProductRowActions } from "./product-row-actions";
 
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -232,6 +233,7 @@ export function ProductsDashboard({ data }: { data: ProductsDashboardData }) {
                   <TableCell className="text-right tabular-nums">
                     {row.fullStock <= 0 ? "—" : row.stockDays === null ? "Sem vendas" : <Badge variant="outline">{integer.format(row.stockDays)} dias</Badge>}
                   </TableCell>
+                  <TableCell className="text-right"><ProductRowActions sku={row.sku} name={row.name} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
