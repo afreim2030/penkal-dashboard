@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { AlertTriangle, ArrowRight, Boxes, CircleAlert, Info, ListTodo, PackageCheck, ShoppingCart, Truck, Warehouse } from "lucide-react";
+import { AlertTriangle, ArrowRight, CircleAlert, Info, ListTodo, ShoppingCart, Warehouse } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,7 +40,6 @@ function ActionIcon({ severity }: { severity: "critical" | "warning" | "info" })
 }
 
 export function MainDashboard({ data }: { data: MainDashboardData }) {
-  const latest = data.sales.latestDay;
   const last7 = data.sales.periods.last7;
   const topSkus = data.sales.topSkus.slice(0, 8);
   const recentInbounds = data.inbounds.inbounds.slice(0, 5);
@@ -48,19 +47,24 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Hoje: o que fazer</h1>
-        <p className="text-muted-foreground text-sm">
-          Ações prioritárias da operação. Vendas fechadas até {formatDate(data.sales.coverage.maxCompleteDate)}.
-        </p>
+      <div className="flex flex-col gap-2 border-b pb-5">
+        <p className="font-medium text-primary text-xs uppercase tracking-[0.18em]">Painel da operação</p>
+        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Visão geral</h1>
+            <p className="mt-1 text-muted-foreground text-sm">Entenda o cenário e resolva primeiro o que afeta suas vendas.</p>
+          </div>
+          <Badge variant="outline" className="w-fit">Dados até {formatDate(data.sales.coverage.maxCompleteDate)}</Badge>
+        </div>
       </div>
 
-      <Card className="border-amber-300/70 bg-amber-50/40 dark:border-amber-800/70 dark:bg-amber-950/10">
+      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.55fr]">
+      <Card className="border-amber-300/70 bg-amber-50/40 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/10">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <CardTitle className="flex items-center gap-2"><ListTodo className="size-5" />Ações prioritárias</CardTitle>
-              <CardDescription>Resolva primeiro o que pode causar perda de vendas, estoque ou dados.</CardDescription>
+              <CardTitle className="flex items-center gap-2"><ListTodo className="size-5" />O que fazer agora</CardTitle>
+              <CardDescription>Prioridades que exigem atenção nesta conta.</CardDescription>
             </div>
             <Badge variant="outline">{integer.format(data.alerts.summary.total)} pendências</Badge>
           </div>
@@ -84,26 +88,36 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
           {data.alerts.summary.total > actions.length ? <Link href="/dashboard/alertas" className="pt-1 text-sm font-medium text-primary hover:underline">Ver todas as pendências ({integer.format(data.alerts.summary.total)})</Link> : null}
         </CardContent>
       </Card>
+      <Card className="bg-primary text-primary-foreground shadow-sm">
+        <CardHeader className="pb-2">
+          <CardDescription className="text-primary-foreground/70">Atalhos de gestão</CardDescription>
+          <CardTitle className="text-xl">Acesse a análise certa</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-2">
+          <Link href="/dashboard/reposicao-full" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Repor estoque FULL <ArrowRight className="size-4" /></Link>
+          <Link href="/dashboard/lucro" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Ver lucro por SKU <ArrowRight className="size-4" /></Link>
+          <Link href="/dashboard/publicidade" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Revisar publicidade <ArrowRight className="size-4" /></Link>
+        </CardContent>
+      </Card>
+      </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Unidades no último dia</CardDescription>
+            <CardDescription>Unidades vendidas · 7 dias</CardDescription>
             <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
               <ShoppingCart className="size-5" />
-              {integer.format(latest.units)}
+              {last7 ? integer.format(last7.units) : "—"}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">Dia completo {formatDate(latest.date)}</CardContent>
+          <CardContent className="text-muted-foreground text-xs">Média {last7 ? decimal.format(last7.units / last7.days) : "—"} por dia</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Faturamento do dia</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{currency.format(latest.revenue)}</CardTitle>
+            <CardDescription>Faturamento · 7 dias</CardDescription>
+            <CardTitle className="text-2xl tabular-nums">{last7 ? currency.format(last7.revenue) : "—"}</CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">
-            {integer.format(latest.orders)} pedidos válidos
-          </CardContent>
+          <CardContent className="text-muted-foreground text-xs">{last7 ? integer.format(last7.orders) : "—"} pedidos válidos</CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
@@ -119,25 +133,13 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Afetando tempo de estoque</CardDescription>
+            <CardDescription>Pendências para revisar</CardDescription>
             <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
-              <Boxes className="size-5" />
-              {integer.format(data.products.summary.stockTimeAffectedUnits)}
+              <ListTodo className="size-5" />
+              {integer.format(data.alerts.summary.total)}
             </CardTitle>
           </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">Unidades no snapshot FULL mais recente</CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Recebido pelo FULL</CardDescription>
-            <CardTitle className="flex items-center gap-2 text-2xl tabular-nums">
-              <PackageCheck className="size-5" />
-              {integer.format(data.inbounds.summary.processed)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground text-xs">
-            {integer.format(data.inbounds.summary.inbounds)} envios no histórico
-          </CardContent>
+          <CardContent className="text-muted-foreground text-xs">Abra os alertas para decidir a próxima ação</CardContent>
         </Card>
       </div>
 
