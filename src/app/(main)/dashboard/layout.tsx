@@ -10,12 +10,14 @@ import { switchMarketplaceAccount } from "./_actions/switch-marketplace-account"
 import { ThemeSwitcher } from "./_components/header/theme-switcher";
 
 const accountButtons = [
-  { id: "5ec7156d-4899-4e99-bd79-e9ff7056c522", label: "CONTA 1" },
-  { id: "8c5756df-727c-4993-b85c-ae18714aa004", label: "CONTA 2" },
+  { id: "5ec7156d-4899-4e99-bd79-e9ff7056c522", label: "PENKAL" },
+  { id: "8c5756df-727c-4993-b85c-ae18714aa004", label: "SÃO PAULO" },
 ];
 
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const { accounts, activeAccountId } = await getMarketplaceAccounts();
+  const activeAccountLabel = accountButtons.find((account) => account.id === activeAccountId)?.label ?? "—";
+
   return (
     <SidebarProvider
       defaultOpen
@@ -35,7 +37,7 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
                 orientation="vertical"
                 className="mx-2 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center"
               />
-              <span className="hidden font-medium text-sm sm:inline">Operação Mercado Livre</span>
+              <span className="hidden font-medium text-sm sm:inline">Visualizando: {activeAccountLabel}</span>
               <div className="ml-1 flex items-center gap-1">
                 {accountButtons.map((account) => (
                   <form key={account.id} action={switchMarketplaceAccount.bind(null, account.id)}>
