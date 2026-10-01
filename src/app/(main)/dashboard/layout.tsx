@@ -43,9 +43,9 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
                   <form key={account.id} action={switchMarketplaceAccount.bind(null, account.id)}>
                     <button
                       type="submit"
-                      className={`rounded-md border px-2 py-1 font-semibold text-xs ${account.id === activeAccountId ? "border-amber-400 bg-amber-100 text-slate-950" : "bg-background hover:bg-accent"}`}
+                      className={`rounded-md border px-2 py-1 font-semibold text-xs ${account.id === activeAccountId ? "border-emerald-500 bg-emerald-600 text-white" : "bg-background hover:bg-accent"}`}
                     >
-                      {account.label}
+                      {account.id === activeAccountId ? `✓ ${account.label}` : account.label}
                     </button>
                   </form>
                 ))}
