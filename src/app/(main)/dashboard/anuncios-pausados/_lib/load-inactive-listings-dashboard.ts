@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface InactiveListingRow {
   id: string;
+  productId: string | null;
+  pausedTag: "ok" | "sem_estoque" | null;
   mlb: string | null;
   title: string;
   status: string;
@@ -15,7 +17,7 @@ export async function loadInactiveListingsDashboard(): Promise<InactiveListingRo
   const supabase = await createClient();
   const { data: listings, error: listingsError } = await supabase
     .from("listings")
-    .select("id, mlb, title, status, product_id")
+    .select("id, mlb, title, status, product_id, paused_tag")
     .in("status", ["Inativo", "Pausado"]);
 
   if (listingsError) throw new Error(`Não foi possível carregar os anúncios: ${listingsError.message}`);
@@ -45,6 +47,8 @@ export async function loadInactiveListingsDashboard(): Promise<InactiveListingRo
       const event = latestEvent.get(listing.id);
       return {
         id: listing.id,
+        productId: listing.product_id,
+        pausedTag: listing.paused_tag === "ok" || listing.paused_tag === "sem_estoque" ? listing.paused_tag : null,
         mlb: listing.mlb,
         title: listing.title,
         status: listing.status,
