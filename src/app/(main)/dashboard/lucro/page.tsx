@@ -11,7 +11,7 @@ const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ period?: string }> }) {
-  const { period = "today" } = await searchParams;
+  const { period = "7d" } = await searchParams;
   const end = new Date();
   const days = period === "yesterday" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : period === "month" ? end.getDate() : 1;
   if (period === "yesterday") end.setDate(end.getDate() - 1);
