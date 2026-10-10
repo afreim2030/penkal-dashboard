@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { InactiveListingRow } from "../_lib/load-inactive-listings-dashboard";
+import { PausedListingActions } from "./paused-listing-actions";
 
 function formatDate(value: string | null): string {
   if (!value) return "Data não disponível";
@@ -67,11 +68,12 @@ export function InactiveListingsDashboard({ rows }: { rows: InactiveListingRow[]
                 <TableHead>MLB</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Data da pausa</TableHead>
+                <TableHead>Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.length === 0 ? (
-                <TableRow><TableCell colSpan={5} className="py-10 text-center text-muted-foreground">Não há anúncios pausados nesta conta.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={6} className="py-10 text-center text-muted-foreground">Não há anúncios pausados nesta conta.</TableCell></TableRow>
               ) : rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell className="font-medium">{row.sku ?? "Sem SKU"}</TableCell>
@@ -85,6 +87,7 @@ export function InactiveListingsDashboard({ rows }: { rows: InactiveListingRow[]
                     <p>{formatDate(row.pausedAt)}</p>
                     {row.source === "histórico importado" ? <p className="text-muted-foreground text-xs">Identificado pelo sistema</p> : null}
                   </TableCell>
+                  <TableCell><PausedListingActions listingId={row.id} productId={row.productId} sku={row.sku} tag={row.pausedTag} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
