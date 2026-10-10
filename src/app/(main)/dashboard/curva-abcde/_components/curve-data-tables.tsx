@@ -25,6 +25,7 @@ function PeriodCell({ data }: { data?: { visits: number; sales: number; units: n
   return <div className="min-w-36 space-y-1 text-right text-xs">
     <CurveBadge curve={data.curve} />
     <p className="font-medium tabular-nums">{currency.format(data.revenue)}</p>
+    <p className="text-muted-foreground">Preço médio: {data.units > 0 ? currency.format(data.revenue / data.units) : "—"}</p>
     <p className="text-muted-foreground">{integer.format(data.units)} un · {integer.format(data.sales)} vendas</p>
     <p className="text-muted-foreground">{integer.format(data.visits)} visitas · {percentage.format(data.conversion)}</p>
   </div>;
