@@ -32,7 +32,7 @@ function PeriodCell({ data }: { data?: { visits: number; sales: number; units: n
 export function CurveDataTables({ curveData, comparison7, comparison30 }: { curveData: AbcdeDashboardData; comparison7: ProductPeriodComparison | null; comparison30: ProductPeriodComparison | null }) {
   const [sortKey, setSortKey] = useState<"currentCurve" | "movement" | "visits" | "sales" | "conversion" | "revenue">("revenue");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
-  const [windowDays, setWindowDays] = useState<7 | 30>(7);
+  const [windowDays, setWindowDays] = useState<7 | 30>(30);
   const sortedRows = useMemo(() => [...curveData.rows].sort((a, b) => {
     const movement = { caiu: 3, manteve: 2, subiu: 1, novo: 0 };
     const av = sortKey === "currentCurve" ? curveRank[a.currentCurve] : sortKey === "movement" ? movement[a.movement] : sortKey === "visits" ? a.currentVisits : sortKey === "sales" ? a.currentSales : sortKey === "conversion" ? a.currentConversion : a.currentRevenue;
