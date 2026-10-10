@@ -11,7 +11,7 @@ export interface AbcdeDashboardData {
   currentMonth: string | null; previousMonth: string | null; hasPreviousMonth: boolean;
   summary: { products: number; dropped: number; improved: number; stable: number }; rows: AbcdeRow[];
 }
-export interface PeriodMetric { visits: number; sales: number; units: number; revenue: number; conversion: number; }
+export interface PeriodMetric { visits: number; sales: number; units: number; revenue: number; conversion: number; curve: Curve; }
 export interface ProductPeriodComparison {
   asOf: string | null; windowDays: number;
   rows: Array<{ sku: string | null; mlb: string | null; productName: string; periods: Record<string, PeriodMetric> }>;
