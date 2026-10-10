@@ -20,9 +20,14 @@ function SortButton({ label, active, direction, onClick }: { label: string; acti
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
   return <button type="button" onClick={onClick} className="inline-flex items-center gap-1 font-medium hover:text-foreground">{label}<Icon className="size-3" /></button>;
 }
-function PeriodCell({ data }: { data?: { visits: number; sales: number; units: number; revenue: number; conversion: number } }) {
+function PeriodCell({ data }: { data?: { visits: number; sales: number; units: number; revenue: number; conversion: number; curve: Curve } }) {
   if (!data) return <span className="text-muted-foreground">—</span>;
-  return <div className="min-w-32 space-y-0.5 text-right text-xs"><p className="font-medium tabular-nums">{currency.format(data.revenue)}</p><p className="text-muted-foreground">{integer.format(data.units)} un · {integer.format(data.visits)} visitas</p><p className="text-muted-foreground">{integer.format(data.sales)} vendas · {percentage.format(data.conversion)}</p></div>;
+  return <div className="min-w-36 space-y-1 text-right text-xs">
+    <CurveBadge curve={data.curve} />
+    <p className="font-medium tabular-nums">{currency.format(data.revenue)}</p>
+    <p className="text-muted-foreground">{integer.format(data.units)} un · {integer.format(data.sales)} vendas</p>
+    <p className="text-muted-foreground">{integer.format(data.visits)} visitas · {percentage.format(data.conversion)}</p>
+  </div>;
 }
 export function CurveDataTables({ curveData, comparison7, comparison30 }: { curveData: AbcdeDashboardData; comparison7: ProductPeriodComparison | null; comparison30: ProductPeriodComparison | null }) {
   const [sortKey, setSortKey] = useState<"currentCurve" | "movement" | "visits" | "sales" | "conversion" | "revenue">("revenue");
