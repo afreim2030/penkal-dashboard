@@ -142,8 +142,8 @@ export function PerformanceDashboard({ data }: { data: PerformanceDashboardData 
         </Card>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <PeriodCard title="Últimos 7 dias" period={data.periods.last7} />
-        <PeriodCard title="7 dias anteriores" period={data.periods.previous7} />
+        <PeriodCard title="Período selecionado" period={data.periods.last7} />
+        <PeriodCard title="Período anterior equivalente" period={data.periods.previous7} />
       </div>
       <div className="grid gap-4 xl:grid-cols-3">
         <Ranking title="Mais visitas" description="Anúncios com maior exposição." rows={data.topVisits} />
