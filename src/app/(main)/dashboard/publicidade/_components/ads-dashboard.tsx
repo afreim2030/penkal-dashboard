@@ -60,6 +60,7 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
   const [campaignDirection, setCampaignDirection] = useState<"asc" | "desc">("desc");
   const [listingSort, setListingSort] = useState<ListingSort>("investment");
   const [listingDirection, setListingDirection] = useState<"asc" | "desc">("desc");
+  const [onlyWithoutSales, setOnlyWithoutSales] = useState(false);
   const changeCampaignSort = (next: CampaignSort) => {
     if (next === campaignSort) setCampaignDirection((current) => (current === "desc" ? "asc" : "desc"));
     else {
@@ -83,14 +84,22 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
     }),
     [campaignDirection, campaignSort, data.campaigns],
   );
+  const listingsWithoutSales = useMemo(
+    () => data.listings.filter((listing) => listing.investment > 0 && listing.sales === 0),
+    [data.listings],
+  );
+  const investmentWithoutSales = useMemo(
+    () => listingsWithoutSales.reduce((total, listing) => total + listing.investment, 0),
+    [listingsWithoutSales],
+  );
   const listings = useMemo(
-    () => [...data.listings].sort((left, right) => {
+    () => [...(onlyWithoutSales ? listingsWithoutSales : data.listings)].sort((left, right) => {
       const leftValue = left[listingSort] ?? (typeof left[listingSort] === "string" ? "" : -1);
       const rightValue = right[listingSort] ?? (typeof right[listingSort] === "string" ? "" : -1);
       const comparison = typeof leftValue === "string" && typeof rightValue === "string" ? leftValue.localeCompare(rightValue, "pt-BR") : Number(leftValue) - Number(rightValue);
       return listingDirection === "desc" ? -comparison : comparison;
     }),
-    [data.listings, listingDirection, listingSort],
+    [data.listings, listingDirection, listingSort, listingsWithoutSales, onlyWithoutSales],
   );
   if (!data.period || data.summary.rows === 0) {
     return (
@@ -224,8 +233,23 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Anúncios com maior investimento</CardTitle>
-          <CardDescription>Consolidado pelo MLB dentro do mesmo período de publicidade.</CardDescription>
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div>
+              <CardTitle>{onlyWithoutSales ? "Anúncios com gasto e sem vendas" : "Anúncios com maior investimento"}</CardTitle>
+              <CardDescription>
+                {onlyWithoutSales
+                  ? `${integer.format(listingsWithoutSales.length)} anúncios sem vendas · gasto total ${currency.format(investmentWithoutSales)}`
+                  : "Consolidado pelo MLB dentro do mesmo período de publicidade."}
+              </CardDescription>
+            </div>
+            <button
+              type="button"
+              onClick={() => setOnlyWithoutSales((current) => !current)}
+              className={`rounded-md px-3 py-2 text-sm font-medium ${onlyWithoutSales ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            >
+              Sem vendas · {currency.format(investmentWithoutSales)}
+            </button>
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -240,7 +264,9 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {listings.map((row, index) => (
+              {listings.length === 0 ? (
+                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhum anúncio com gasto e sem vendas neste período.</TableCell></TableRow>
+              ) : listings.map((row, index) => (
                 <TableRow key={`${row.mlb ?? "sem-mlb"}-${index}`}>
                   <TableCell className="font-medium">{row.mlb ?? "—"}</TableCell>
                   <TableCell className="max-w-[480px] truncate" title={row.title}>
