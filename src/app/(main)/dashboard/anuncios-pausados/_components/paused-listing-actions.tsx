@@ -38,7 +38,8 @@ export function PausedListingActions({
     startTransition(async () => {
       try {
         setError(null);
-        await updatePausedListingSku(productId, nextSku);
+        const result = await updatePausedListingSku(productId, sku, nextSku);
+        if (result.error) { setError(result.error); return; }
         setEditOpen(false);
         router.refresh();
       } catch (reason) {
