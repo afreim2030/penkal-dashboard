@@ -46,7 +46,7 @@ export interface PerformanceDashboardData {
 }
 export async function loadPerformanceDashboard(start?: string, end?: string): Promise<PerformanceDashboardData | null> {
   const supabase = await createClient();
-  const { data, error } = await start && end ? supabase.rpc("get_performance_dashboard_data", { p_start: start, p_end: end }) : supabase.rpc("get_performance_dashboard_data");
+  const { data, error } = await (start && end ? supabase.rpc("get_performance_dashboard_data", { p_start: start, p_end: end }) : supabase.rpc("get_performance_dashboard_data"));
   if (error) throw new Error(`Não foi possível carregar a performance: ${error.message}`);
   if (!data || typeof data !== "object") return null;
   return data as PerformanceDashboardData;
