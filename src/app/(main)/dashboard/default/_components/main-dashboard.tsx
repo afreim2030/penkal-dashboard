@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { AlertTriangle, ArrowRight, CircleAlert, Info, ListTodo, ShoppingCart, Warehouse } from "lucide-react";
+import { ArrowRight, ListTodo, ShoppingCart, Warehouse } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,17 +33,10 @@ function QuickLink({ href, title, description }: { href: string; title: string; 
   );
 }
 
-function ActionIcon({ severity }: { severity: "critical" | "warning" | "info" }) {
-  if (severity === "critical") return <CircleAlert className="mt-0.5 size-5 shrink-0 text-red-600" />;
-  if (severity === "warning") return <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />;
-  return <Info className="mt-0.5 size-5 shrink-0 text-blue-600" />;
-}
-
 export function MainDashboard({ data }: { data: MainDashboardData }) {
   const last7 = data.sales.periods.last7;
   const topSkus = data.sales.topSkus.slice(0, 8);
   const recentInbounds = data.inbounds.inbounds.slice(0, 5);
-  const actions = data.alerts.alerts.slice(0, 6);
 
   return (
     <div className="flex flex-col gap-5">
@@ -58,48 +51,17 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1.45fr_0.55fr]">
-      <Card className="border-amber-300/70 bg-amber-50/40 shadow-sm dark:border-amber-800/70 dark:bg-amber-950/10">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2"><ListTodo className="size-5" />O que fazer agora</CardTitle>
-              <CardDescription>Prioridades que exigem atenção nesta conta.</CardDescription>
-            </div>
-            <Badge variant="outline">{integer.format(data.alerts.summary.total)} pendências</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-2">
-          {actions.length === 0 ? (
-            <p className="text-muted-foreground text-sm">Nenhuma pendência encontrada para esta conta.</p>
-          ) : (
-            actions.map((action) => (
-              <Link key={action.id} href={action.href} className="group flex items-center gap-3 rounded-md border bg-background/80 p-3 transition-colors hover:bg-muted/60">
-                <ActionIcon severity={action.severity} />
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm">{action.title}</p>
-                  <p className="truncate text-muted-foreground text-xs">{action.description}</p>
-                </div>
-                {action.value ? <Badge variant="secondary" className="shrink-0">{action.value}</Badge> : null}
-                <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-foreground" />
-              </Link>
-            ))
-          )}
-          {data.alerts.summary.total > actions.length ? <Link href="/dashboard/alertas" className="pt-1 text-sm font-medium text-primary hover:underline">Ver todas as pendências ({integer.format(data.alerts.summary.total)})</Link> : null}
-        </CardContent>
-      </Card>
       <Card className="bg-primary text-primary-foreground shadow-sm">
         <CardHeader className="pb-2">
           <CardDescription className="text-primary-foreground/70">Atalhos de gestão</CardDescription>
           <CardTitle className="text-xl">Acesse a análise certa</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2">
+        <CardContent className="grid gap-2 sm:grid-cols-3">
           <Link href="/dashboard/reposicao-full" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Repor estoque FULL <ArrowRight className="size-4" /></Link>
           <Link href="/dashboard/lucro" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Ver lucro por SKU <ArrowRight className="size-4" /></Link>
           <Link href="/dashboard/publicidade" className="flex items-center justify-between rounded-md bg-primary-foreground/10 px-3 py-2.5 text-sm font-medium hover:bg-primary-foreground/15">Revisar publicidade <ArrowRight className="size-4" /></Link>
         </CardContent>
       </Card>
-      </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Card>
