@@ -24,7 +24,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const supabase = await createClient();
   const { data: account } = await supabase.rpc("get_active_marketplace_account_id");
   const [{ data: products }, { data: costs }] = await Promise.all([
-    supabase.from("products").select("id,sku,name").eq("account_id", account ?? "").order("sku"),
+    supabase.from("products").select("id,sku,name").eq("account_id", account ?? "").is("excluded_at", null).order("sku"),
     supabase.from("product_costs").select("product_id,unit_cost").eq("account_id", account ?? ""),
   ]);
   const costByProduct = new Map((costs ?? []).map((cost) => [cost.product_id, Number(cost.unit_cost)]));
