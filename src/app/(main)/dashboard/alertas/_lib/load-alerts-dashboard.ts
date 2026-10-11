@@ -11,10 +11,11 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) throw new Error("Usuário não autenticado.");
-  const [products, performance, inbounds, conflictsResult, campaignsResult] = await Promise.all([
+  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult] = await Promise.all([
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
+    supabase.from("listings").select("mlb,title,status,current_price,promotional_price"),
   ]);
   const alerts: OperationalAlert[] = [];
   for (const conflict of conflictsResult.data ?? []) alerts.push({ id: `sales-conflict-${conflict.id}`, severity: "critical", category: "Vendas", title: "Conflito de importação de venda", description: [conflict.sale_number ? `Venda ${conflict.sale_number}` : null, conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null, conflict.conflict_type].filter(Boolean).join(" · "), href: "/importar-dados" });
@@ -30,6 +31,15 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   }
   for (const campaign of (campaignData?.campaigns ?? []).filter((row) => row.acos !== null && row.acos >= 0.35).slice(0, 15)) {
     alerts.push({ id: `campaign-acos-${campaign.campaignName}`, severity: "warning", category: "Publicidade", title: "ACOS alto: revisar campanha", description: campaign.campaignName, value: `${((campaign.acos ?? 0) * 100).toFixed(1).replace(".", ",")}%`, href: "/dashboard/publicidade" });
+  }
+  const activeWithoutPromotion = (listingsResult.data ?? []).filter((listing) => {
+    const status = String(listing.status ?? "").trim().toLocaleLowerCase("pt-BR");
+    const currentPrice = Number(listing.current_price ?? 0);
+    const promotionalPrice = listing.promotional_price === null ? null : Number(listing.promotional_price);
+    return status === "ativo" && currentPrice > 0 && (promotionalPrice === null || promotionalPrice <= 0 || promotionalPrice >= currentPrice);
+  });
+  for (const listing of activeWithoutPromotion.slice(0, 30)) {
+    alerts.push({ id: `listing-no-promotion-${listing.mlb}`, severity: "info", category: "Publicidade", title: "Anúncio ativo sem promoção", description: `${listing.mlb} · ${listing.title}`, value: `R$ ${Number(listing.current_price).toFixed(2).replace(".", ",")}`, href: "/dashboard/produtos" });
   }
   for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20).slice(0, 15)) {
     alerts.push({ id: `visits-no-sales-${row.mlb ?? row.sku ?? "unknown"}`, severity: "warning", category: "Vendas", title: "Visitas sem vendas", description: `${row.mlb ?? row.sku ?? "Anúncio não vinculado"} · ${row.visits} visitas no período`, value: "0 vendas", href: "/dashboard/performance" });
