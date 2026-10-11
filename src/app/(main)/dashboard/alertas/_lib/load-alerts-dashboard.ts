@@ -11,11 +11,12 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) throw new Error("Usuário não autenticado.");
-  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult] = await Promise.all([
+  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult] = await Promise.all([
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
-    supabase.from("listings").select("mlb,title,status,current_price,promotional_price"),
+    supabase.from("listings").select("mlb,title,status,current_price,promotional_price,updated_at"),
+    supabase.from("imports").select("created_at").eq("import_type", "listings").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const alerts: OperationalAlert[] = [];
   for (const conflict of conflictsResult.data ?? []) alerts.push({ id: `sales-conflict-${conflict.id}`, severity: "critical", category: "Vendas", title: "Conflito de importação de venda", description: [conflict.sale_number ? `Venda ${conflict.sale_number}` : null, conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null, conflict.conflict_type].filter(Boolean).join(" · "), href: "/importar-dados" });
@@ -32,7 +33,9 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   for (const campaign of (campaignData?.campaigns ?? []).filter((row) => row.acos !== null && row.acos >= 0.35).slice(0, 15)) {
     alerts.push({ id: `campaign-acos-${campaign.campaignName}`, severity: "warning", category: "Publicidade", title: "ACOS alto: revisar campanha", description: campaign.campaignName, value: `${((campaign.acos ?? 0) * 100).toFixed(1).replace(".", ",")}%`, href: "/dashboard/publicidade" });
   }
+  const latestListingsImportAt = latestListingsImportResult.data?.created_at;
   const activeWithoutPromotion = (listingsResult.data ?? []).filter((listing) => {
+    if (!latestListingsImportAt || new Date(listing.updated_at).getTime() < new Date(latestListingsImportAt).getTime()) return false;
     const status = String(listing.status ?? "").trim().toLocaleLowerCase("pt-BR");
     const currentPrice = Number(listing.current_price ?? 0);
     const promotionalPrice = listing.promotional_price === null ? null : Number(listing.promotional_price);
