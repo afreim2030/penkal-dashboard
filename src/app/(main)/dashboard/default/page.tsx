@@ -5,9 +5,10 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { MainDashboard } from "./_components/main-dashboard";
 import { loadMainDashboard } from "./_lib/load-main-dashboard";
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ start?: string; end?: string }> }) {
   try {
-    const data = await loadMainDashboard();
+    const filters = await searchParams;
+    const data = await loadMainDashboard(filters);
     if (!data) {
       return (
         <Alert>
