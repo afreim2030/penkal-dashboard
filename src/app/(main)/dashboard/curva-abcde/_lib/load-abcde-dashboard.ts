@@ -20,7 +20,11 @@ export async function loadAbcdeDashboard(start?: string, end?: string): Promise<
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("get_abc_curve_dashboard_data", { p_start: start ?? null, p_end: end ?? null });
   if (error) throw new Error(`Não foi possível carregar a Curva ABCDE: ${error.message}`);
-  if (!data || typeof data !== "object") return null;\n  const dashboard = data as AbcdeDashboardData;\n  // Proteção adicional: item sem faturamento nunca entra em uma curva ABCDE.\n  dashboard.rows = dashboard.rows.map((row) => Number(row.currentRevenue) <= 0 ? { ...row, currentCurve: "Sem vendas" } : row);\n  return dashboard;
+  if (!data || typeof data !== "object") return null;
+  const dashboard = data as AbcdeDashboardData;
+  // Proteção adicional: item sem faturamento nunca entra em uma curva ABCDE.
+  dashboard.rows = dashboard.rows.map((row) => Number(row.currentRevenue) <= 0 ? { ...row, currentCurve: "Sem vendas" } : row);
+  return dashboard;
 }
 export async function loadProductPeriodComparison(windowDays: 7 | 30): Promise<ProductPeriodComparison | null> {
   const supabase = await createClient();
