@@ -250,15 +250,20 @@ function datesBetween(start: string | null, end: string | null): string[] {
 
 async function upsertCoverage(supabase: SupabaseClient, files: PreparedFile[]): Promise<void> {
   const rows = files.flatMap((file) =>
-    datesBetween(file.parsed.periodStart, file.parsed.periodEnd).map((coverageDate) => ({
-      import_id: file.importRecord.id,
-      coverage_date: coverageDate,
-      coverage_status: "unknown",
-      coverage_source: file.sourceExportedAt ? "export_datetime" : "report_scope",
-      evidence: file.sourceExportedAt
-        ? "Período observado no conteúdo; escopo diário da exportação não foi comprovado."
-        : "Período observado no conteúdo; timestamp e escopo diário não foram comprovados.",
-    })),
+    datesBetween(file.parsed.periodStart, file.parsed.periodEnd).map((coverageDate) => {
+      const isDailyReport = file.parsed.periodStart === file.parsed.periodEnd;
+      return {
+        import_id: file.importRecord.id,
+        coverage_date: coverageDate,
+        coverage_status: isDailyReport ? "complete" : "unknown",
+        coverage_source: isDailyReport ? "report_scope" : file.sourceExportedAt ? "export_datetime" : "report_scope",
+        evidence: isDailyReport
+          ? "Arquivo diário com período inicial e final iguais; cobertura confirmada."
+          : file.sourceExportedAt
+            ? "Período observado no conteúdo; escopo diário da exportação não foi comprovado."
+            : "Período observado no conteúdo; timestamp e escopo diário não foram comprovados.",
+      };
+    }),
   );
   if (!rows.length) return;
   const { error } = await supabase
