@@ -8,7 +8,7 @@ export interface AbcdeRow {
   currentRevenue: number; currentConversion: number; previousVisits: number; previousSales: number; previousConversion: number;
 }
 export interface AbcdeDashboardData {
-  currentMonth: string | null; previousMonth: string | null; hasPreviousMonth: boolean;
+  currentMonth: string | null; previousMonth: string | null; hasPreviousMonth: boolean; period?: { start: string; end: string; previousStart: string; previousEnd: string };
   summary: { products: number; dropped: number; improved: number; stable: number }; rows: AbcdeRow[];
 }
 export interface PeriodMetric { visits: number; sales: number; units: number; revenue: number; conversion: number; curve: Curve; }
@@ -16,9 +16,9 @@ export interface ProductPeriodComparison {
   asOf: string | null; windowDays: number;
   rows: Array<{ sku: string | null; mlb: string | null; productName: string; periods: Record<string, PeriodMetric> }>;
 }
-export async function loadAbcdeDashboard(): Promise<AbcdeDashboardData | null> {
+export async function loadAbcdeDashboard(start?: string, end?: string): Promise<AbcdeDashboardData | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_abc_curve_dashboard_data");
+  const { data, error } = await supabase.rpc("get_abc_curve_dashboard_data", { p_start: start ?? null, p_end: end ?? null });
   if (error) throw new Error(`Não foi possível carregar a Curva ABCDE: ${error.message}`);
   return data && typeof data === "object" ? data as AbcdeDashboardData : null;
 }
