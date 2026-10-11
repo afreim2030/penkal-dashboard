@@ -196,6 +196,7 @@ export async function importListings({
           listing_type: row.listingType,
           status: row.status,
           current_price: row.price,
+          promotional_price: row.promotionalPrice,
         },
         { onConflict: "account_id,mlb" },
       );
