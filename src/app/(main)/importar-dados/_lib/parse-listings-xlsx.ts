@@ -15,6 +15,7 @@ export interface ParsedListingRow {
   listingType: string | null;
   status: string | null;
   price: number | null;
+  promotionalPrice: number | null;
   stockFull: number | null;
 }
 
@@ -87,6 +88,8 @@ export function parseListingsWorkbook(workbook: WorkBook): ParsedListingsFile {
     const mlb = cellText(row[columns.get("ITEM_ID") ?? -1]);
     const priceCell = row[columns.get("PRICE") ?? -1];
     const price = parseNumber(priceCell);
+    const promotionColumn = ["PROMOTION_PRICE", "PROMOTIONAL_PRICE", "PREÇO EM PROMOÇÃO", "PRECO EM PROMOCAO"].map((key) => columns.get(key)).find((index): index is number => index !== undefined);
+    const promotionalPrice = parseNumber(row[promotionColumn ?? -1]);
     const title = cellText(row[columns.get("TITLE") ?? -1]);
 
     if (!sku) problems.push({ line, message: "SKU vazio" });
@@ -102,6 +105,7 @@ export function parseListingsWorkbook(workbook: WorkBook): ParsedListingsFile {
       listingType: cellText(row[columns.get("LISTING_TYPE") ?? -1]) || null,
       status: cellText(row[columns.get("STATUS") ?? -1]) || null,
       price,
+      promotionalPrice,
       stockFull: parseNumber(row[columns.get("STOCK_FULL") ?? -1]),
     });
   }
