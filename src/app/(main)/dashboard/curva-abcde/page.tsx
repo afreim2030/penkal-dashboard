@@ -6,8 +6,8 @@ import { loadAbcdeDashboard, loadProductPeriodComparison } from "./_lib/load-abc
 function date(value: string | null) { return value ? new Intl.DateTimeFormat("pt-BR").format(new Date(`${value}T12:00:00`)) : "—"; }
 export default async function Page({ searchParams }: { searchParams: Promise<{ start?: string; end?: string }> }) {
   const { start, end } = await searchParams;
-  const selectedStart = /^\\d{4}-\\d{2}-\\d{2}$/.test(start ?? "") ? start : undefined;
-  const selectedEnd = /^\\d{4}-\\d{2}-\\d{2}$/.test(end ?? "") ? end : undefined;
+  const selectedStart = /^\d{4}-\d{2}-\d{2}$/.test(start ?? "") ? start : undefined;
+  const selectedEnd = /^\d{4}-\d{2}-\d{2}$/.test(end ?? "") ? end : undefined;
   try {
     const [data, comparison7, comparison30] = await Promise.all([loadAbcdeDashboard(selectedStart, selectedEnd), loadProductPeriodComparison(7), loadProductPeriodComparison(30)]);
     if (!data || data.rows.length === 0) return <Alert><AlertCircle /><AlertTitle>Sem dados de performance</AlertTitle><AlertDescription>Importe relatórios de desempenho para montar a Curva ABCDE.</AlertDescription></Alert>;
