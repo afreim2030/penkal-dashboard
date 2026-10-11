@@ -5,9 +5,12 @@ import { CampaignHistory } from "./_components/campaign-history";
 import { loadAdsDashboard } from "./_lib/load-ads-dashboard";
 import { loadCampaignHistory } from "./_lib/load-campaign-history";
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<{ start?: string; end?: string }> }) {
+  const { start, end } = await searchParams;
+  const selectedStart = /^\d{4}-\d{2}-\d{2}$/.test(start ?? "") ? start : undefined;
+  const selectedEnd = /^\d{4}-\d{2}-\d{2}$/.test(end ?? "") ? end : undefined;
   try {
-    const [data, history] = await Promise.all([loadAdsDashboard(), loadCampaignHistory()]);
+    const [data, history] = await Promise.all([loadAdsDashboard(selectedStart, selectedEnd), loadCampaignHistory()]);
     if (!data) return <Alert><AlertCircle /><AlertTitle>Dados insuficientes</AlertTitle><AlertDescription>Importe os dados de publicidade do Mercado Livre para montar este painel.</AlertDescription></Alert>;
     return <div className="flex flex-col gap-5"><AdsDashboard data={data} /><CampaignHistory data={history} /></div>;
   } catch (error) {
