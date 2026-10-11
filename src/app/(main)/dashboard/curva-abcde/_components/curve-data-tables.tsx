@@ -13,8 +13,8 @@ const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "
 const curveRank: Record<Curve, number> = { A: 1, B: 2, C: 3, D: 4, E: 5, "Sem vendas": 6 };
 
 function CurveBadge({ curve }: { curve: Curve }) {
-  const styles = { A: "bg-emerald-600 text-white", B: "bg-blue-600 text-white", C: "bg-amber-500 text-white", D: "bg-orange-600 text-white", E: "bg-slate-600 text-white" };
-  return <Badge className={styles[curve]}>Curva {curve}</Badge>;
+  const styles: Record<Curve, string> = { A: "bg-emerald-600 text-white", B: "bg-blue-600 text-white", C: "bg-amber-500 text-white", D: "bg-orange-600 text-white", E: "bg-slate-600 text-white", "Sem vendas": "bg-slate-200 text-slate-700" };
+  return <Badge className={styles[curve]}>{curve === "Sem vendas" ? curve : `Curva ${curve}`}</Badge>;
 }
 function SortButton({ label, active, direction, onClick }: { label: string; active: boolean; direction: "asc" | "desc"; onClick: () => void }) {
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
