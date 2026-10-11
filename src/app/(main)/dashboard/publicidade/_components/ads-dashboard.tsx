@@ -8,7 +8,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-import type { AdsDashboardData } from "../_lib/load-ads-dashboard";
+import type { AdsDashboardData, AdsRankRow } from "../_lib/load-ads-dashboard";
 
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
