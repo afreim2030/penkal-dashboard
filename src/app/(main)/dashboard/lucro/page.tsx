@@ -10,18 +10,28 @@ import { ProfitResultsTable } from "./_components/profit-results-table";
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const percent = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const businessDate = (instant = new Date()) => {
+  const values = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(instant);
+  const part = (type: Intl.DateTimeFormatPartTypes) => values.find((value) => value.type === type)?.value ?? "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+};
+const shiftDate = (date: string, days: number) => {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
+  return value.toISOString().slice(0, 10);
+};
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ period?: string; start?: string; end?: string; costFilter?: string }> }) {
   const { period = "7d", start: requestedStart, end: requestedEnd, costFilter } = await searchParams;
   const isDate = (value: string | undefined) => Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
   const hasCustomRange = isDate(requestedStart) && isDate(requestedEnd) && requestedStart! <= requestedEnd!;
-  const end = hasCustomRange ? new Date(`${requestedEnd}T12:00:00`) : new Date();
-  const days = period === "yesterday" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : period === "month" ? end.getDate() : 1;
-  if (!hasCustomRange && period === "yesterday") end.setDate(end.getDate() - 1);
-  const start = hasCustomRange ? new Date(`${requestedStart}T12:00:00`) : new Date(end); if (!hasCustomRange) start.setDate(start.getDate() - days + 1);
-  const iso = (date: Date) => date.toISOString().slice(0, 10);
-  const previousEnd = new Date(start); previousEnd.setDate(previousEnd.getDate() - 1);
-  const previousStart = new Date(previousEnd); previousStart.setDate(previousStart.getDate() - days + 1);
+  const end = hasCustomRange ? requestedEnd! : businessDate();
+  const monthStart = `${end.slice(0, 8)}01`;
+  const days = period === "yesterday" ? 1 : period === "7d" ? 7 : period === "30d" ? 30 : period === "month" ? Math.round((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${monthStart}T12:00:00Z`)) / 86_400_000) + 1 : 1;
+  const selectedEnd = !hasCustomRange && period === "yesterday" ? shiftDate(end, -1) : end;
+  const start = hasCustomRange ? requestedStart! : shiftDate(selectedEnd, -days + 1);
+  const previousEnd = shiftDate(start, -1);
+  const previousStart = shiftDate(previousEnd, -days + 1);
   const supabase = await createClient();
   const { data: account } = await supabase.rpc("get_active_marketplace_account_id");
   const [{ data: products }, { data: costs }] = await Promise.all([
@@ -30,9 +40,9 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   ]);
   const costByProduct = new Map((costs ?? []).map((cost) => [cost.product_id, Number(cost.unit_cost)]));
   const [{ data: current }, { data: previous }, { data: byProduct }] = await Promise.all([
-    supabase.rpc("get_profit_dashboard_data", { p_start: iso(start), p_end: iso(end) }),
-    supabase.rpc("get_profit_dashboard_data", { p_start: iso(previousStart), p_end: iso(previousEnd) }),
-    supabase.rpc("get_profit_by_product", { p_start: iso(start), p_end: iso(end) }),
+    supabase.rpc("get_profit_dashboard_data", { p_start: start, p_end: selectedEnd }),
+    supabase.rpc("get_profit_dashboard_data", { p_start: previousStart, p_end: previousEnd }),
+    supabase.rpc("get_profit_by_product", { p_start: start, p_end: selectedEnd }),
   ]);
   const metrics = (current ?? {}) as { revenue?: number; contribution?: number; adsInvestment?: number; afterAds?: number };
   const before = (previous ?? {}) as typeof metrics;
@@ -44,7 +54,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   if (period === "costs") return <main className="flex flex-col gap-5"><div><Link href="/dashboard/lucro" className="text-sm text-primary hover:underline">← Voltar para lucratividade</Link><h1 className="mt-2 text-3xl font-semibold tracking-tight">Custos por SKU</h1></div><div className="flex flex-wrap gap-2"><Link href="/dashboard/lucro?period=costs" className={`rounded-md px-3 py-2 text-sm font-medium ${costFilter !== "missing" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Todos ({integer.format(allProducts.length)})</Link><Link href="/dashboard/lucro?period=costs&costFilter=missing" className={`rounded-md px-3 py-2 text-sm font-medium ${costFilter === "missing" ? "bg-primary text-primary-foreground" : "bg-muted"}`}>Sem custo ({integer.format(productsWithoutCost.length)})</Link></div><Card><CardContent className="overflow-x-auto pt-6"><Table><TableHeader><TableRow><TableHead>SKU</TableHead><TableHead>Produto</TableHead><TableHead className="text-right">Custo unitário</TableHead></TableRow></TableHeader><TableBody>{displayedCostProducts.length === 0 ? <TableRow><TableCell colSpan={3} className="py-8 text-center text-muted-foreground">Não há produtos sem custo.</TableCell></TableRow> : displayedCostProducts.map((product) => <TableRow key={product.id}><TableCell className="font-medium">{product.sku}</TableCell><TableCell className="max-w-[420px] truncate" title={product.name}>{product.name}</TableCell><TableCell><form action={saveUnitCost} className="flex justify-end gap-2"><input name="productId" type="hidden" value={product.id}/><Input name="unitCost" defaultValue={costByProduct.get(product.id) ?? ""} inputMode="decimal" placeholder="0,00" className="w-28 text-right"/><Button size="sm">Salvar</Button></form></TableCell></TableRow>)}</TableBody></Table></CardContent></Card></main>;
   return <main className="flex flex-col gap-5">
     <div><h1 className="text-3xl font-semibold tracking-tight">Lucro por SKU</h1><p className="text-muted-foreground text-sm">Resultado da conta ativa usando somente dias completos: faturamento menos custo do produto, tarifas, fretes, descontos, reembolsos e Ads.</p></div>
-    <Card><CardContent className="flex flex-col gap-3 p-3"><div className="flex flex-wrap gap-2">{[["today","Hoje"],["yesterday","Ontem"],["7d","Últimos 7 dias"],["30d","Últimos 30 dias"],["month","Este mês"]].map(([value,label]) => <Link key={value} href={`/dashboard/lucro?period=${value}`} className={`rounded-md px-3 py-2 text-sm font-medium ${!hasCustomRange && period === value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{label}</Link>)}</div><form className="flex flex-wrap items-end gap-2" action="/dashboard/lucro"><label className="grid gap-1 text-sm font-medium">De<Input name="start" type="date" defaultValue={hasCustomRange ? requestedStart : iso(start)} className="w-40"/></label><label className="grid gap-1 text-sm font-medium">Até<Input name="end" type="date" defaultValue={hasCustomRange ? requestedEnd : iso(end)} className="w-40"/></label><Button type="submit">Aplicar período</Button></form></CardContent></Card>
+    <Card><CardContent className="flex flex-col gap-3 p-3"><div className="flex flex-wrap gap-2">{[["today","Hoje"],["yesterday","Ontem"],["7d","Últimos 7 dias"],["30d","Últimos 30 dias"],["month","Este mês"]].map(([value,label]) => <Link key={value} href={`/dashboard/lucro?period=${value}`} className={`rounded-md px-3 py-2 text-sm font-medium ${!hasCustomRange && period === value ? "bg-primary text-primary-foreground" : "bg-muted"}`}>{label}</Link>)}</div><form className="flex flex-wrap items-end gap-2" action="/dashboard/lucro"><label className="grid gap-1 text-sm font-medium">De<Input name="start" type="date" defaultValue={hasCustomRange ? requestedStart : start} className="w-40"/></label><label className="grid gap-1 text-sm font-medium">Até<Input name="end" type="date" defaultValue={hasCustomRange ? requestedEnd : selectedEnd} className="w-40"/></label><Button type="submit">Aplicar período</Button></form></CardContent></Card>
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{cards.map(([label,value,old]) => { const change = old ? ((value - old) / Math.abs(old)) * 100 : null; return <Card key={label}><CardHeader className="pb-2"><CardDescription>{label}</CardDescription><CardTitle className="text-2xl tabular-nums">{money.format(value)}</CardTitle></CardHeader><CardContent className="text-muted-foreground text-xs">{change === null ? "Sem comparação anterior" : `${change >= 0 ? "+" : ""}${change.toFixed(1).replace(".", ",")}% vs. período anterior`}</CardContent></Card>; })}</div>
     <Card><CardHeader><CardTitle>Resultado por produto</CardTitle><CardDescription>Clique no título de qualquer coluna para ordenar. Valores são do período selecionado.</CardDescription></CardHeader><CardContent className="overflow-x-auto"><ProfitResultsTable rows={productMargins} /></CardContent></Card>
     <Card><CardHeader><CardTitle>Importar custos por planilha</CardTitle><CardDescription>Envie XLSX com as colunas SKU e CUSTO UNITÁRIO.</CardDescription></CardHeader><CardContent><form action={importUnitCosts} className="flex flex-wrap gap-3"><Input name="file" type="file" accept=".xlsx" className="max-w-sm" required/><Button>Importar custos</Button></form></CardContent></Card>
