@@ -3,32 +3,35 @@ import { loadProductsDashboard } from "@/app/(main)/dashboard/produtos/_lib/load
 import { loadSalesDashboard } from "@/app/(main)/dashboard/vendas/_lib/load-sales-dashboard";
 import { loadAlertsDashboard } from "@/app/(main)/dashboard/alertas/_lib/load-alerts-dashboard";
 
-function shiftMonthStart(date: string) {
-  const value = new Date(`${date.slice(0, 8)}01T12:00:00Z`);
-  value.setUTCMonth(value.getUTCMonth() - 1);
+function shiftDate(date: string, days: number) {
+  const value = new Date(`${date}T12:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
 }
 
-function buildMonthComparison(sales: NonNullable<Awaited<ReturnType<typeof loadSalesDashboard>>>) {
-  const asOf = sales.coverage.maxCompleteDate;
-  if (!asOf) return null;
-  const currentMonthStart = `${asOf.slice(0, 8)}01`;
-  const previousMonthStart = shiftMonthStart(asOf);
-  const dayCount = Number(asOf.slice(-2));
-  const completeRevenue = new Map(sales.daily.filter((row) => row.coverageStatus === "complete" && row.date).map((row) => [row.date as string, row.revenue]));
-  let currentCumulative = 0;
-  let previousCumulative = 0;
-  const daily = Array.from({ length: dayCount }, (_, index) => {
-    const day = String(index + 1).padStart(2, "0");
-    currentCumulative += completeRevenue.get(`${currentMonthStart.slice(0, 8)}${day}`) ?? 0;
-    previousCumulative += completeRevenue.get(`${previousMonthStart.slice(0, 8)}${day}`) ?? 0;
-    return { day: index + 1, current: currentCumulative, previous: previousCumulative };
-  });
-  return { asOf, currentMonthStart, previousMonthStart, currentRevenue: currentCumulative, previousRevenue: previousCumulative, daily };
+function validDate(value: string | undefined) {
+  return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
 }
 
+function buildMonthComparison(sales: NonNullable<Awaited<ReturnType<typeof loadSalesDashboard>>>, requestedStart?: string, requestedEnd?: string) {
+  const asOf = sales.coverage.maxCompleteDate;
+  if (!asOf) return null;
+  const end = validDate(requestedEnd) && requestedEnd! <= asOf ? requestedEnd! : asOf;
+  const start = validDate(requestedStart) && requestedStart! <= end ? requestedStart! : shiftDate(end, -29);
+  const days = Math.round((Date.parse(`${end}T12:00:00Z`) - Date.parse(`${start}T12:00:00Z`)) / 86_400_000) + 1;
+  const previousStart = shiftDate(start, -days);
+  const completeRevenue = new Map(sales.daily.filter((row) => row.coverageStatus === "complete" && row.date).map((row) => [row.date as string, row.revenue]));
+  const daily = Array.from({ length: days }, (_, index) => {
+    const date = shiftDate(start, index);
+    const previousDate = shiftDate(previousStart, index);
+    return { date, label: date.slice(8, 10) + "/" + date.slice(5, 7), current: completeRevenue.get(date) ?? 0, previous: completeRevenue.get(previousDate) ?? 0 };
+  });
+  const currentRevenue = daily.reduce((sum, row) => sum + row.current, 0);
+  const previousRevenue = daily.reduce((sum, row) => sum + row.previous, 0);
+  return { asOf, start, end, previousStart, previousEnd: shiftDate(start, -1), currentRevenue, previousRevenue, daily };
+}
 
-export async function loadMainDashboard() {
+export async function loadMainDashboard(filters: { start?: string; end?: string } = {}) {
   const [sales, products, inbounds, alerts] = await Promise.all([
     loadSalesDashboard(),
     loadProductsDashboard(),
@@ -46,7 +49,7 @@ export async function loadMainDashboard() {
 
   return {
     sales,
-    monthComparison: buildMonthComparison(sales),
+    monthComparison: buildMonthComparison(sales, filters.start, filters.end),
     products,
     inbounds,
     alerts,
