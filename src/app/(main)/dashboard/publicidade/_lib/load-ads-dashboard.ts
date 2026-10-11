@@ -36,9 +36,9 @@ export interface AdsDashboardData {
   listings: AdsRankRow[];
 }
 
-export async function loadAdsDashboard(): Promise<AdsDashboardData | null> {
+export async function loadAdsDashboard(start?: string, end?: string): Promise<AdsDashboardData | null> {
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_ads_dashboard_data");
+  const { data, error } = await supabase.rpc("get_ads_dashboard_data", { p_start: start ?? null, p_end: end ?? null });
   if (error) throw new Error(`Não foi possível carregar Publicidade: ${error.message}`);
   if (!data || typeof data !== "object") return null;
   return data as AdsDashboardData;
