@@ -29,8 +29,22 @@ function optionalDecimal(value: number | null) {
   return value === null ? "—" : decimal.format(value);
 }
 
+function ListingDiagnosis({ row }: { row: AdsRankRow }) {
+  const ctr = row.impressions > 0 ? row.clicks / row.impressions : 0;
+  const conversion = row.clicks > 0 ? row.sales / row.clicks : 0;
+  const lowCtr = row.impressions >= 500 && ctr < 0.005;
+  const lowConversion = row.clicks >= 10 && conversion < 0.02;
+  if (!lowCtr && !lowConversion) return <span className="text-muted-foreground">—</span>;
+  return (
+    <div className="flex flex-wrap justify-end gap-1">
+      {lowCtr ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Baixo CTR</span> : null}
+      {lowConversion ? <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-800">Baixa conversão</span> : null}
+    </div>
+  );
+}
+
 type CampaignSort = "campaignName" | "investment" | "revenue" | "clicks" | "sales" | "acos" | "roas";
-type ListingSort = "mlb" | "title" | "investment" | "revenue" | "sales" | "acos";
+type ListingSort = "mlb" | "title" | "impressions" | "clicks" | "investment" | "revenue" | "sales" | "acos";
 
 function SortHeader<T extends string>({
   label,
@@ -269,25 +283,31 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
               <TableRow>
                 <SortHeader label="MLB" value="mlb" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
                 <SortHeader label="Produto" value="title" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Impressões" value="impressions" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <SortHeader label="Cliques" value="clicks" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
                 <SortHeader label="Investimento" value="investment" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
                 <SortHeader label="Receita" value="revenue" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
                 <SortHeader label="Vendas" value="sales" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
                 <SortHeader label="ACOS" value="acos" active={listingSort} direction={listingDirection} onChange={changeListingSort} />
+                <TableHead className="text-right">Diagnóstico</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {listings.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="py-8 text-center text-muted-foreground">Nenhum anúncio com gasto e sem vendas neste período.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="py-8 text-center text-muted-foreground">Nenhum anúncio com gasto e sem vendas neste período.</TableCell></TableRow>
               ) : listings.map((row, index) => (
                 <TableRow key={`${row.mlb ?? "sem-mlb"}-${index}`}>
                   <TableCell className="font-medium">{row.mlb ?? "—"}</TableCell>
                   <TableCell className="max-w-[480px] truncate" title={row.title}>
                     {row.title ?? "Anúncio não vinculado"}
                   </TableCell>
+                  <TableCell className="text-right tabular-nums">{integer.format(row.impressions)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{integer.format(row.clicks)}</TableCell>
                   <TableCell className="text-right tabular-nums">{currency.format(row.investment)}</TableCell>
                   <TableCell className="text-right tabular-nums">{currency.format(row.revenue)}</TableCell>
                   <TableCell className="text-right tabular-nums">{integer.format(row.sales)}</TableCell>
                   <TableCell className="text-right tabular-nums">{optionalPercent(row.acos)}</TableCell>
+                  <TableCell className="text-right"><ListingDiagnosis row={row} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
