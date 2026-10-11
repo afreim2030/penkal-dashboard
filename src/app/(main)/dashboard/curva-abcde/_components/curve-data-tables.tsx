@@ -10,7 +10,7 @@ import type { AbcdeDashboardData, Curve, ProductPeriodComparison } from "../_lib
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const percentage = new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const currency = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
-const curveRank: Record<Curve, number> = { A: 1, B: 2, C: 3, D: 4, E: 5 };
+const curveRank: Record<Curve, number> = { A: 1, B: 2, C: 3, D: 4, E: 5, "Sem vendas": 6 };
 
 function CurveBadge({ curve }: { curve: Curve }) {
   const styles = { A: "bg-emerald-600 text-white", B: "bg-blue-600 text-white", C: "bg-amber-500 text-white", D: "bg-orange-600 text-white", E: "bg-slate-600 text-white" };
