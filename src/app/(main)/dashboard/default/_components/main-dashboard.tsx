@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 import type { MainDashboardData } from "../_lib/load-main-dashboard";
+import { MonthlyComparisonChart } from "./monthly-comparison-chart";
 
 const integer = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1, minimumFractionDigits: 1 });
@@ -104,6 +105,8 @@ export function MainDashboard({ data }: { data: MainDashboardData }) {
           <CardContent className="text-muted-foreground text-xs">Abra os alertas para decidir a próxima ação</CardContent>
         </Card>
       </div>
+
+      <MonthlyComparisonChart data={data.monthComparison} />
 
       <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
         <Card>
