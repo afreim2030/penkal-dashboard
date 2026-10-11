@@ -124,11 +124,23 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-semibold tracking-tight">Publicidade</h1>
-        <p className="text-muted-foreground text-sm">
-          Período do relatório: {formatDate(data.period.start)} até {formatDate(data.period.end)}.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Publicidade</h1>
+          <p className="text-muted-foreground text-sm">
+            Período selecionado: {formatDate(data.period.start)} até {formatDate(data.period.end)}.
+          </p>
+        </div>
+        <form action="/dashboard/publicidade" className="flex flex-wrap items-end gap-2">
+          <label className="grid gap-1 text-xs text-muted-foreground">De
+            <input name="start" type="date" defaultValue={data.period.start.slice(0, 10)} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground" />
+          </label>
+          <label className="grid gap-1 text-xs text-muted-foreground">Até
+            <input name="end" type="date" defaultValue={data.period.end.slice(0, 10)} className="h-9 rounded-md border bg-background px-2 text-sm text-foreground" />
+          </label>
+          <button type="submit" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground">Aplicar</button>
+          <a href="/dashboard/publicidade" className="h-9 rounded-md bg-muted px-3 py-2 text-sm font-medium">Último relatório</a>
+        </form>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -196,7 +208,7 @@ export function AdsDashboard({ data }: { data: AdsDashboardData }) {
       <Card>
         <CardHeader>
           <CardTitle>Campanhas</CardTitle>
-          <CardDescription>Ordenadas pelo investimento do período selecionado no relatório.</CardDescription>
+          <CardDescription>Ordenadas pelo investimento do período selecionado.</CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
