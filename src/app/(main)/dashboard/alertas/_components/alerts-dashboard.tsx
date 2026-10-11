@@ -12,12 +12,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { resolveAlert } from "../_actions/alert-actions";
 import type { AlertsDashboardData, OperationalAlert, OperationalAlertSeverity } from "../_lib/load-alerts-dashboard";
 
-type AlertTab = "all" | "full" | "ads" | "sales" | "shipping" | "system";
+type AlertTab = "all" | "full" | "ads" | "noPromotion" | "sales" | "shipping" | "system";
 
 const tabs: Array<{ id: AlertTab; label: string }> = [
   { id: "all", label: "Todos" },
   { id: "full", label: "FULL" },
   { id: "ads", label: "ADS" },
+  { id: "noPromotion", label: "Sem promoção" },
   { id: "sales", label: "Vendas" },
   { id: "shipping", label: "Envios" },
   { id: "system", label: "Sistema" },
@@ -42,7 +43,8 @@ function isSystemAlert(alert: OperationalAlert) {
 function belongsToTab(alert: OperationalAlert, tab: AlertTab) {
   if (tab === "all") return true;
   if (tab === "full") return alert.category === "Estoque FULL";
-  if (tab === "ads") return alert.category === "Publicidade";
+  if (tab === "ads") return alert.category === "Publicidade" && !alert.id.startsWith("listing-no-promotion-");
+  if (tab === "noPromotion") return alert.id.startsWith("listing-no-promotion-");
   if (tab === "shipping") return alert.category === "Envios FULL";
   if (tab === "system") return isSystemAlert(alert);
   return alert.category === "Vendas" && !isSystemAlert(alert);
