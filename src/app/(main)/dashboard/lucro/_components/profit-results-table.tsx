@@ -42,10 +42,19 @@ export function ProfitResultsTable({ rows }: { rows: ProfitProductRow[] }) {
     else { setSort(next); setDirection(next === "sku" || next === "name" ? "asc" : "desc"); }
   };
   const sorted = useMemo(() => [...rows].sort((a, b) => {
-    const marginA = a.revenue > 0 ? a.afterAds / a.revenue : 0;
-    const marginB = b.revenue > 0 ? b.afterAds / b.revenue : 0;
-    const first = sort === "sku" ? a.sku.localeCompare(b.sku, "pt-BR", { numeric: true }) : sort === "name" ? a.name.localeCompare(b.name, "pt-BR") : sort === "margin" ? marginA - marginB : a[sort] - b[sort];
-    return direction === "asc" ? first : -first;
+    if (sort === "sku") return direction === "asc" ? a.sku.localeCompare(b.sku, "pt-BR", { numeric: true }) : b.sku.localeCompare(a.sku, "pt-BR", { numeric: true });
+    if (sort === "name") return direction === "asc" ? a.name.localeCompare(b.name, "pt-BR") : b.name.localeCompare(a.name, "pt-BR");
+    const value = (row: ProfitProductRow) => {
+      if (sort === "margin") return row.revenue > 0 ? row.afterAds / row.revenue : 0;
+      if (sort === "units") return row.units;
+      if (sort === "revenue") return row.revenue;
+      if (sort === "productCosts") return row.productCosts;
+      if (sort === "operationalCosts") return row.operationalCosts;
+      if (sort === "adsInvestment") return row.adsInvestment;
+      return row.afterAds;
+    };
+    const result = value(a) - value(b);
+    return direction === "asc" ? result : -result;
   }), [rows, sort, direction]);
 
   return <Table><TableHeader><TableRow>
