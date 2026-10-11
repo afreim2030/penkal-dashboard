@@ -16,7 +16,7 @@ type MonthComparison = {
   previousEnd: string;
   currentRevenue: number;
   previousRevenue: number;
-  daily: Array<{ date: string; label: string; current: number; previous: number }>;
+  daily: Array<{ date: string; label: string; current: number | null; previous: number }>;
 };
 
 function formatDate(value: string) {
@@ -43,7 +43,7 @@ export function MonthlyComparisonChart({ data }: { data: MonthComparison | null 
         </div>
         <form className="flex flex-wrap items-end gap-2 pt-1" action="/dashboard">
           <label className="grid gap-1 text-xs font-medium">De<Input name="start" type="date" defaultValue={data.start} className="w-40" /></label>
-          <label className="grid gap-1 text-xs font-medium">Até<Input name="end" type="date" defaultValue={data.end} max={data.asOf} className="w-40" /></label>
+          <label className="grid gap-1 text-xs font-medium">Até<Input name="end" type="date" defaultValue={data.end} className="w-40" /></label>
           <Button type="submit">Aplicar</Button>
         </form>
       </CardHeader>
