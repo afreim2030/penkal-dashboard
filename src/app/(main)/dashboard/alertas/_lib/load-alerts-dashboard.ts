@@ -15,7 +15,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
-    supabase.from("listings").select("mlb,title,status,current_price,promotional_price,updated_at"),
+    supabase.from("listings").select("mlb,title,status,current_price,promotional_price,updated_at").order("updated_at", { ascending: false }),
     supabase.from("imports").select("created_at").eq("import_type", "listings").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const alerts: OperationalAlert[] = [];
@@ -41,7 +41,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
     const promotionalPrice = listing.promotional_price === null ? null : Number(listing.promotional_price);
     return status === "ativo" && currentPrice > 0 && (promotionalPrice === null || promotionalPrice <= 0 || promotionalPrice >= currentPrice);
   });
-  for (const listing of activeWithoutPromotion.slice(0, 30)) {
+  for (const listing of activeWithoutPromotion) {
     alerts.push({ id: `listing-no-promotion-${listing.mlb}`, severity: "info", category: "Publicidade", title: "Anúncio ativo sem promoção", description: `${listing.mlb} · ${listing.title}`, value: `R$ ${Number(listing.current_price).toFixed(2).replace(".", ",")}`, href: "/dashboard/produtos" });
   }
   for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20).slice(0, 15)) {
