@@ -102,11 +102,12 @@ function Ranking({ title, description, rows }: { title: string; description: str
 }
 export function PerformanceDashboard({ data }: { data: PerformanceDashboardData }) {
   const latest = data.latestDay;
-  const [ranking, setRanking] = useState<"visits" | "low-conversion" | "without-sales">("visits");
+  const [ranking, setRanking] = useState<"visits" | "low-conversion" | "without-sales" | "no-visits">("visits");
   const rankings = {
     visits: { title: "Mais visitas", description: "Anúncios com maior exposição.", rows: data.topVisits },
     "low-conversion": { title: "Muitas visitas e baixa conversão", description: "Oportunidades para revisar preço, capa ou descrição.", rows: data.lowConversion },
     "without-sales": { title: "Visitas sem venda", description: "Anúncios que receberam tráfego, mas não converteram.", rows: data.visitsWithoutSales },
+    "no-visits": { title: "Anúncios sem visitas", description: "Anúncios sem visitas no período, do menor para o maior.", rows: data.noVisits },
   };
   const selectedRanking = rankings[ranking];
   return (
@@ -156,6 +157,7 @@ export function PerformanceDashboard({ data }: { data: PerformanceDashboardData 
         <Button variant={ranking === "visits" ? "default" : "outline"} onClick={() => setRanking("visits")}>Mais visitas</Button>
         <Button variant={ranking === "low-conversion" ? "default" : "outline"} onClick={() => setRanking("low-conversion")}>Muitas visitas e baixa conversão</Button>
         <Button variant={ranking === "without-sales" ? "default" : "outline"} onClick={() => setRanking("without-sales")}>Visitas sem venda</Button>
+        <Button variant={ranking === "no-visits" ? "default" : "outline"} onClick={() => setRanking("no-visits")}>Anúncios sem visitas</Button>
       </div>
       <Ranking title={selectedRanking.title} description={selectedRanking.description} rows={selectedRanking.rows} />
     </div>
