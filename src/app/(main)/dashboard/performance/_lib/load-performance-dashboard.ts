@@ -43,6 +43,7 @@ export interface PerformanceDashboardData {
   topVisits: PerformanceRow[];
   lowConversion: PerformanceRow[];
   visitsWithoutSales: PerformanceRow[];
+  noVisits: PerformanceRow[];
 }
 export async function loadPerformanceDashboard(start?: string, end?: string): Promise<PerformanceDashboardData | null> {
   const supabase = await createClient();
