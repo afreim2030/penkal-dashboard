@@ -54,7 +54,14 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   }
   const { data: resolved } = await supabase.from("alert_resolutions").select("alert_key, resolved_at").order("resolved_at", { ascending: false });
   const resolvedItems = (resolved ?? []).map((row) => ({ alertKey: row.alert_key, resolvedAt: row.resolved_at }));
-  const resolvedKeys = new Set(resolvedItems.map((row) => row.alertKey));
+  // Para anúncios sem promoção, uma resolução vale somente até a próxima importação.
+  // Se a planilha nova continuar indicando ausência de promoção, o aviso volta automaticamente.
+  const resolvedKeys = new Set(resolvedItems
+    .filter((row) => {
+      if (!row.alertKey.startsWith("listing-no-promotion-") || !latestListingsImportAt) return true;
+      return new Date(row.resolvedAt).getTime() >= new Date(latestListingsImportAt).getTime();
+    })
+    .map((row) => row.alertKey));
   const visibleAlerts = alerts.filter((alert) => !resolvedKeys.has(alert.id));
   const summary = { critical: visibleAlerts.filter((alert) => alert.severity === "critical").length, warning: visibleAlerts.filter((alert) => alert.severity === "warning").length, info: visibleAlerts.filter((alert) => alert.severity === "info").length, total: visibleAlerts.length };
   return { summary, alerts: visibleAlerts, resolved: resolvedItems };
