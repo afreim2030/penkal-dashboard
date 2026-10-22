@@ -11,7 +11,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) throw new Error("Usuário não autenticado.");
-  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult] = await Promise.all([
+  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult, adsResult] = await Promise.all([
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
