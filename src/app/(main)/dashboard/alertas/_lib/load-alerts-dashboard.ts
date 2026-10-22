@@ -11,13 +11,13 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) throw new Error("Usuário não autenticado.");
-  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult, adsResult] = await Promise.all([
+  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult, latestAdsImportResult] = await Promise.all([
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
     supabase.from("listings").select("mlb,title,status,current_price,promotional_price,updated_at").order("updated_at", { ascending: false }),
     supabase.from("imports").select("created_at").eq("import_type", "listings").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.rpc("get_ads_dashboard_data"),
+    supabase.from("imports").select("id").eq("import_type", "ad_metrics").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
   const alerts: OperationalAlert[] = [];
   for (const conflict of conflictsResult.data ?? []) alerts.push({ id: `sales-conflict-${conflict.id}`, severity: "critical", category: "Vendas", title: "Conflito de importação de venda", description: [conflict.sale_number ? `Venda ${conflict.sale_number}` : null, conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null, conflict.conflict_type].filter(Boolean).join(" · "), href: "/importar-dados" });
@@ -34,27 +34,48 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   for (const campaign of (campaignData?.campaigns ?? []).filter((row) => row.acos !== null && row.acos >= 0.35).slice(0, 15)) {
     alerts.push({ id: `campaign-acos-${campaign.campaignName}`, severity: "warning", category: "Publicidade", title: "ACOS alto: revisar campanha", description: campaign.campaignName, value: `${((campaign.acos ?? 0) * 100).toFixed(1).replace(".", ",")}%`, href: "/dashboard/publicidade" });
   }
-  const adsData = adsResult.data as {
-    period?: { start?: string; end?: string } | null;
-    listings?: Array<{ mlb?: string | null; title?: string | null; impressions?: number | string | null; clicks?: number | string | null }>;
-  } | null;
-  const adsPeriod = adsData?.period?.start && adsData?.period?.end
-    ? `${adsData.period.start.split("-").reverse().join("/")}–${adsData.period.end.split("-").reverse().join("/")}`
-    : "último relatório";
-  const adsListings = adsData?.listings ?? [];
-  const adImpressions = (row: (typeof adsListings)[number]) => Number(row.impressions ?? 0);
-  const adClicks = (row: (typeof adsListings)[number]) => Number(row.clicks ?? 0);
-  const adCtr = (row: (typeof adsListings)[number]) => {
-    const impressions = adImpressions(row);
-    return impressions > 0 ? adClicks(row) / impressions : 0;
-  };
+  const latestAdsImport = latestAdsImportResult.data;
+  const latestAdsRowsResult = latestAdsImport
+    ? await supabase.from("ad_metrics").select("mlb_raw,ad_title,impressions,clicks,period_start,period_end").eq("import_id", latestAdsImport.id)
+    : { data: [], error: null };
+  if (latestAdsRowsResult.error) throw new Error(`Não foi possível carregar o último relatório de publicidade: ${latestAdsRowsResult.error.message}`);
 
-  for (const row of adsListings.filter((row) => adImpressions(row) === 0).slice(0, 20)) {
+  type AdsAlertRow = { mlb: string | null; title: string | null; impressions: number; clicks: number; periodStart: string | null; periodEnd: string | null };
+  const adsByMlb = new Map<string, AdsAlertRow>();
+  for (const metric of latestAdsRowsResult.data ?? []) {
+    const key = String(metric.mlb_raw ?? metric.ad_title ?? "").trim();
+    if (!key) continue;
+    const current = adsByMlb.get(key);
+    if (current) {
+      current.impressions += Number(metric.impressions ?? 0);
+      current.clicks += Number(metric.clicks ?? 0);
+    } else {
+      adsByMlb.set(key, {
+        mlb: metric.mlb_raw ?? null,
+        title: metric.ad_title ?? null,
+        impressions: Number(metric.impressions ?? 0),
+        clicks: Number(metric.clicks ?? 0),
+        periodStart: metric.period_start ?? null,
+        periodEnd: metric.period_end ?? null,
+      });
+    }
+  }
+  const adsListings = [...adsByMlb.values()].sort((left, right) => right.impressions - left.impressions);
+  const adImpressions = (row: AdsAlertRow) => row.impressions;
+  const adClicks = (row: AdsAlertRow) => row.clicks;
+  const adCtr = (row: AdsAlertRow) => row.impressions > 0 ? row.clicks / row.impressions : 0;
+  const adsPeriodStart = adsListings.map((row) => row.periodStart).filter((value): value is string => Boolean(value)).sort()[0];
+  const adsPeriodEnd = adsListings.map((row) => row.periodEnd).filter((value): value is string => Boolean(value)).sort().at(-1);
+  const adsPeriod = adsPeriodStart && adsPeriodEnd
+    ? `${adsPeriodStart.split("-").reverse().join("/")}–${adsPeriodEnd.split("-").reverse().join("/")}`
+    : "último relatório";
+
+  for (const row of adsListings.filter((row) => adImpressions(row) === 0)) {
     alerts.push({ id: `ads-no-impressions-${row.mlb ?? row.title ?? "unknown"}`, severity: "warning", category: "Publicidade", title: "Anúncio sem impressões", description: `${row.mlb ?? "Anúncio sem MLB"} · ${row.title ?? "Sem título"} · ${adsPeriod}`, value: "0 impressões", href: "/dashboard/publicidade" });
   }
-  for (const row of adsListings.filter((row) => adImpressions(row) >= 1000 && adCtr(row) < 0.003).slice(0, 20)) {
+  for (const row of adsListings.filter((row) => adImpressions(row) >= 1000 && adCtr(row) < 0.003)) {
     const ctr = (adCtr(row) * 100).toFixed(2).replace(".", ",");
-    alerts.push({ id: `ads-low-ctr-${row.mlb ?? row.title ?? "unknown"}`, severity: "warning", category: "Publicidade", title: "Muitas impressões e CTR baixo", description: `${row.mlb ?? "Anúncio sem MLB"} · ${row.title ?? "Sem título"} · ${adsPeriod}`, value: `${Number(adImpressions(row)).toLocaleString("pt-BR")} imp. · CTR ${ctr}%`, href: "/dashboard/publicidade" });
+    alerts.push({ id: `ads-low-ctr-${row.mlb ?? row.title ?? "unknown"}`, severity: "warning", category: "Publicidade", title: "Muitas impressões e CTR baixo", description: `${row.mlb ?? "Anúncio sem MLB"} · ${row.title ?? "Sem título"} · ${adsPeriod}`, value: `${adImpressions(row).toLocaleString("pt-BR")} imp. · CTR ${ctr}%`, href: "/dashboard/publicidade" });
   }
 
   const latestListingsImportAt = latestListingsImportResult.data?.created_at;
@@ -68,7 +89,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   for (const listing of activeWithoutPromotion) {
     alerts.push({ id: `listing-no-promotion-${listing.mlb}`, severity: "info", category: "Publicidade", title: "Anúncio ativo sem promoção", description: `${listing.mlb} · ${listing.title}`, value: `R$ ${Number(listing.current_price).toFixed(2).replace(".", ",")}`, href: "/dashboard/produtos" });
   }
-  for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20).slice(0, 15)) {
+  for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20)) {
     alerts.push({ id: `visits-no-sales-${row.mlb ?? row.sku ?? "unknown"}`, severity: "warning", category: "Publicidade", title: "Visitas sem vendas", description: `${row.mlb ?? row.sku ?? "Anúncio não vinculado"} · ${row.visits} visitas no período`, value: "0 vendas", href: "/dashboard/performance" });
   }
 
