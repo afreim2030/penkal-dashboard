@@ -21,7 +21,7 @@ export async function resolveAlert(formData: FormData) {
 
   const { error: resolutionError } = await supabase
     .from("alert_resolutions")
-    .upsert({ alert_key: alertKey, resolved_by: user.id, account_id: accountId }, { onConflict: "alert_key" });
+    .upsert({ alert_key: alertKey, resolved_by: user.id, account_id: accountId, resolved_at: new Date().toISOString() }, { onConflict: "alert_key" });
   if (resolutionError) throw new Error("Não foi possível resolver o alerta.");
 
   const { error: taskError } = await supabase
