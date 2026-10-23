@@ -178,8 +178,10 @@ export async function importListings({
     if (existingError) throw new Error("Não foi possível verificar os anúncios existentes.");
 
     const existingMlbs = new Set((existingListings ?? []).map((listing) => listing.mlb));
-    let listingsCreated = 0;
-    let listingsUpdated = 0;
+    const listingsToUpsert: Array<{
+      mlb: string; product_id: string; title: string; listing_type: string | null; status: string;
+      current_price: number | null; promotional_price: number | null;
+    }> = [];
 
     for (const row of lastRowByMlb.values()) {
       const productId = productIdBySku.get(row.sku);
@@ -187,28 +189,28 @@ export async function importListings({
         problems.push({ line: row.line, message: `Produto não encontrado para o SKU ${row.sku}` });
         continue;
       }
-
-      const { error } = await supabase.from("listings").upsert(
-        {
-          mlb: row.mlb,
-          product_id: productId,
-          title: row.title,
-          listing_type: row.listingType,
-          status: row.status,
-          current_price: row.price,
-          promotional_price: row.promotionalPrice,
-        },
-        { onConflict: "account_id,mlb" },
-      );
-
-      if (error) {
-        problems.push({ line: row.line, message: `Falha ao gravar o anúncio ${row.mlb}` });
-      } else if (existingMlbs.has(row.mlb)) {
-        listingsUpdated += 1;
-      } else {
-        listingsCreated += 1;
-      }
+      listingsToUpsert.push({
+        mlb: row.mlb,
+        product_id: productId,
+        title: row.title,
+        listing_type: row.listingType,
+        status: row.status,
+        current_price: row.price,
+        promotional_price: row.promotionalPrice,
+      });
     }
+
+    if (listingsToUpsert.length > 0) {
+      const { error } = await supabase
+        .from("listings")
+        .upsert(listingsToUpsert, { onConflict: "account_id,mlb" });
+      if (error) throw new Error("Não foi possível gravar os anúncios do arquivo.");
+    }
+
+    const { created: listingsCreated, updated: listingsUpdated } = classifyListingMlbs(
+      listingsToUpsert.map((listing) => listing.mlb),
+      existingMlbs,
+    );
 
     const { error: reconcileError } = await supabase.rpc("reconcile_data_links");
     if (reconcileError) {
