@@ -179,7 +179,7 @@ export async function importListings({
 
     const existingMlbs = new Set((existingListings ?? []).map((listing) => listing.mlb));
     const listingsToUpsert: Array<{
-      mlb: string; product_id: string; title: string; listing_type: string | null; status: string;
+      mlb: string; product_id: string; title: string; listing_type: string | null; status: string | null;
       current_price: number | null; promotional_price: number | null;
     }> = [];
 
