@@ -71,13 +71,20 @@ export async function loadProductsDashboard(): Promise<ProductsDashboardData | n
   const { data: productRecords, error: productsError } = await supabase.from("products").select("id, sku");
   if (productsError) throw new Error(`Não foi possível calcular o tempo de estoque: ${productsError.message}`);
   const productIds = new Map((productRecords ?? []).map((product) => [product.sku, product.id]));
-  const { data: listingRecords, error: listingsError } = await supabase
-    .from("listings")
-    .select("product_id, status")
-    .not("product_id", "is", null);
-  if (listingsError) throw new Error("Não foi possível identificar anúncios excluídos: " + listingsError.message);
+  const listingRecords: Array<{ product_id: string | null; status: string | null }> = [];
+  const listingPageSize = 1000;
+  for (let from = 0; ; from += listingPageSize) {
+    const { data: page, error: listingsError } = await supabase
+      .from("listings")
+      .select("product_id, status")
+      .not("product_id", "is", null)
+      .range(from, from + listingPageSize - 1);
+    if (listingsError) throw new Error("Não foi possível identificar anúncios excluídos: " + listingsError.message);
+    listingRecords.push(...(page ?? []));
+    if (!page || page.length < listingPageSize) break;
+  }
   const visibleProductIds = new Set<string>();
-  for (const listing of listingRecords ?? []) {
+  for (const listing of listingRecords) {
     if (listing.product_id && listing.status !== "Excluído") visibleProductIds.add(listing.product_id);
   }
   const { data: excluded, error: excludedError } = await supabase.from("products").select("sku").not("excluded_at", "is", null);
