@@ -71,6 +71,15 @@ export async function loadProductsDashboard(): Promise<ProductsDashboardData | n
   const { data: productRecords, error: productsError } = await supabase.from("products").select("id, sku");
   if (productsError) throw new Error(`Não foi possível calcular o tempo de estoque: ${productsError.message}`);
   const productIds = new Map((productRecords ?? []).map((product) => [product.sku, product.id]));
+  const { data: listingRecords, error: listingsError } = await supabase
+    .from("listings")
+    .select("product_id, status")
+    .not("product_id", "is", null);
+  if (listingsError) throw new Error("Não foi possível identificar anúncios excluídos: " + listingsError.message);
+  const visibleProductIds = new Set<string>();
+  for (const listing of listingRecords ?? []) {
+    if (listing.product_id && listing.status !== "Excluído") visibleProductIds.add(listing.product_id);
+  }
   const { data: excluded, error: excludedError } = await supabase.from("products").select("sku").not("excluded_at", "is", null);
   if (excludedError) throw new Error("Não foi possível carregar anúncios excluídos: " + excludedError.message);
   const excludedSkus = new Set((excluded ?? []).map((product) => product.sku));
@@ -79,7 +88,7 @@ export async function loadProductsDashboard(): Promise<ProductsDashboardData | n
     const full = stockByProduct.get(productIds.get(product.sku) ?? "");
     const stockDays = full && full.stock > 0 && full.sales30d > 0 ? Math.ceil((full.stock / full.sales30d) * 30) : null;
     return { ...product, stockDays };
-  }).filter((product) => !excludedSkus.has(product.sku));
+  }).filter((product) => !excludedSkus.has(product.sku) && (visibleProductIds.has(productIds.get(product.sku) ?? "") || product.listingCount === 0));
   dashboard.summary = {
     products: dashboard.products.length,
     activeProducts: dashboard.products.filter((product) => product.status === "Ativo").length,
