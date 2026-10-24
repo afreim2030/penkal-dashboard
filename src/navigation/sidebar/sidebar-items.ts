@@ -7,6 +7,7 @@ import {
   Link2,
   DollarSign,
   CirclePause,
+  Trash2,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -127,6 +128,12 @@ export const sidebarItems: NavGroup[] = [
         title: "Anúncios pausados",
         url: "/dashboard/anuncios-pausados",
         icon: CirclePause,
+      },
+      {
+        id: "deleted-listings",
+        title: "Anúncios excluídos",
+        url: "/dashboard/anuncios-excluidos",
+        icon: Trash2,
       },
       {
         id: "ai",
