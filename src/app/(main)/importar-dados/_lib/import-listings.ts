@@ -233,7 +233,7 @@ export async function importListings({
       .map((listing) => listing.id);
 
     for (const ids of batches(missingActiveListingIds)) {
-      const { error } = await supabase.from("listings").update({ status: "Inativo" }).in("id", ids);
+      const { error } = await supabase.from("listings").update({ status: "Excluído" }).in("id", ids);
       if (error) throw new Error("Não foi possível atualizar os anúncios removidos da plataforma.");
     }
 
