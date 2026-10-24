@@ -5,6 +5,18 @@ import { parseListingsXlsx } from "./parse-listings-xlsx";
 import { createHash } from "node:crypto";
 
 const PROBLEM_LIMIT = 10;
+const UPDATE_BATCH_SIZE = 500;
+
+function isActiveListingStatus(status: string | null): boolean {
+  const normalized = (status ?? "").trim().toLocaleLowerCase("pt-BR");
+  return normalized === "ativo" || normalized === "active";
+}
+
+function batches<T>(items: readonly T[], size = UPDATE_BATCH_SIZE): T[][] {
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index += size) result.push([...items.slice(index, index + size)]);
+  return result;
+}
 
 export function sha256File(buffer: Buffer): string {
   return createHash("sha256").update(buffer).digest("hex");
@@ -205,6 +217,24 @@ export async function importListings({
         .from("listings")
         .upsert(listingsToUpsert, { onConflict: "account_id,mlb" });
       if (error) throw new Error("Não foi possível gravar os anúncios do arquivo.");
+    }
+
+    // O relatório de anúncios é o retrato completo da conta. Portanto, quando um
+    // anúncio que antes estava ativo não aparece mais nele, ele foi removido da
+    // plataforma e não deve continuar como ativo no dashboard.
+    const importedMlbs = new Set(listingsToUpsert.map((listing) => listing.mlb));
+    const { data: currentListings, error: currentListingsError } = await supabase
+      .from("listings")
+      .select("id, mlb, status");
+    if (currentListingsError) throw new Error("Não foi possível reconciliar os anúncios ausentes do arquivo.");
+
+    const missingActiveListingIds = (currentListings ?? [])
+      .filter((listing) => !importedMlbs.has(listing.mlb) && isActiveListingStatus(listing.status))
+      .map((listing) => listing.id);
+
+    for (const ids of batches(missingActiveListingIds)) {
+      const { error } = await supabase.from("listings").update({ status: "Inativo" }).in("id", ids);
+      if (error) throw new Error("Não foi possível atualizar os anúncios removidos da plataforma.");
     }
 
     const { created: listingsCreated, updated: listingsUpdated } = classifyListingMlbs(
