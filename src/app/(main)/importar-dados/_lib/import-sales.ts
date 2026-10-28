@@ -248,17 +248,41 @@ function datesBetween(start: string | null, end: string | null): string[] {
   return dates;
 }
 
+function brazilDate(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value;
+  const year = part("year");
+  const month = part("month");
+  const day = part("day");
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
 async function upsertCoverage(supabase: SupabaseClient, files: PreparedFile[]): Promise<void> {
   const rows = files.flatMap((file) =>
     datesBetween(file.parsed.periodStart, file.parsed.periodEnd).map((coverageDate) => {
       const isDailyReport = file.parsed.periodStart === file.parsed.periodEnd;
+      const exportedDate = brazilDate(file.sourceExportedAt);
+      // An export produced after the period ended is a closed report: all of
+      // its dates can safely feed comparisons and profit calculations.
+      const isClosedHistoricalReport = Boolean(exportedDate && file.parsed.periodEnd && file.parsed.periodEnd < exportedDate);
+      const isComplete = isDailyReport || isClosedHistoricalReport;
       return {
         import_id: file.importRecord.id,
         coverage_date: coverageDate,
-        coverage_status: isDailyReport ? "complete" : "unknown",
+        coverage_status: isComplete ? "complete" : "unknown",
         coverage_source: isDailyReport ? "report_scope" : file.sourceExportedAt ? "export_datetime" : "report_scope",
         evidence: isDailyReport
           ? "Arquivo diário com período inicial e final iguais; cobertura confirmada."
+          : isClosedHistoricalReport
+            ? "O período do relatório termina antes da data de exportação; cobertura confirmada."
           : file.sourceExportedAt
             ? "Período observado no conteúdo; escopo diário da exportação não foi comprovado."
             : "Período observado no conteúdo; timestamp e escopo diário não foram comprovados.",
