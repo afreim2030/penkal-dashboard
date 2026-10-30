@@ -258,3 +258,23 @@ export function parseInboundsCsv(buffer: Buffer): ParsedInboundsCsv {
         problems.push({
           line,
           message: `Linha duplicada equivalente para envio ${inboundId} e SKU ${skuRaw}`,
+          severity: "warning",
+        });
+      } else {
+        logicalRows.delete(key);
+        rows.splice(rows.indexOf(previous), 1);
+        conflictingKeys.add(key);
+        problems.push({
+          line,
+          message: `Conflito histórico no arquivo para envio ${inboundId} e SKU ${skuRaw}`,
+          severity: "error",
+        });
+      }
+      return;
+    }
+    logicalRows.set(key, row);
+    rows.push(row);
+  });
+
+  return { rows, rowCount: dataRows.length, duplicateRows, headers, problems };
+}
