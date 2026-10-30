@@ -16,6 +16,10 @@ const REQUIRED_HEADERS = [
   "Unidades para identificar",
 ] as const;
 
+const HEADER_ALIASES: Partial<Record<(typeof REQUIRED_HEADERS)[number], readonly string[]>> = {
+  "Número do anúncio": ["Código do anúncio"],
+};
+
 const TIME_ZONE = "America/Sao_Paulo";
 
 export interface ParsedInboundRow {
@@ -173,10 +177,14 @@ export function parseInboundsCsv(buffer: Buffer): ParsedInboundsCsv {
   if (sourceRows.length === 0) throw new Error("O CSV está vazio.");
   const headers = sourceRows[0].map((header) => header.trim());
   const headerIndexes = new Map(headers.map((header, index) => [normalizedHeader(header), index]));
-  const missing = REQUIRED_HEADERS.filter((header) => !headerIndexes.has(normalizedHeader(header)));
+  const indexForHeader = (header: (typeof REQUIRED_HEADERS)[number]): number | undefined => {
+    const names = [header, ...(HEADER_ALIASES[header] ?? [])];
+    return names.map((name) => headerIndexes.get(normalizedHeader(name))).find((index) => index !== undefined);
+  };
+  const missing = REQUIRED_HEADERS.filter((header) => indexForHeader(header) === undefined);
   if (missing.length) throw new Error(`Cabeçalhos obrigatórios ausentes: ${missing.join(", ")}.`);
 
-  const column = (name: (typeof REQUIRED_HEADERS)[number]) => headerIndexes.get(normalizedHeader(name)) as number;
+  const column = (name: (typeof REQUIRED_HEADERS)[number]) => indexForHeader(name) as number;
   const problems: InboundsImportProblem[] = [];
   const rows: ParsedInboundRow[] = [];
   const logicalRows = new Map<string, ParsedInboundRow>();
@@ -250,23 +258,3 @@ export function parseInboundsCsv(buffer: Buffer): ParsedInboundsCsv {
         problems.push({
           line,
           message: `Linha duplicada equivalente para envio ${inboundId} e SKU ${skuRaw}`,
-          severity: "warning",
-        });
-      } else {
-        logicalRows.delete(key);
-        rows.splice(rows.indexOf(previous), 1);
-        conflictingKeys.add(key);
-        problems.push({
-          line,
-          message: `Conflito histórico no arquivo para envio ${inboundId} e SKU ${skuRaw}`,
-          severity: "error",
-        });
-      }
-      return;
-    }
-    logicalRows.set(key, row);
-    rows.push(row);
-  });
-
-  return { rows, rowCount: dataRows.length, duplicateRows, headers, problems };
-}
