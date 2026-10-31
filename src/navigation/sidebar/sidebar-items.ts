@@ -1,13 +1,12 @@
 import {
   BarChart3,
   Bell,
+  CirclePause,
+  DollarSign,
   FileBarChart,
   Import,
   LayoutDashboard,
   Link2,
-  DollarSign,
-  CirclePause,
-  Trash2,
   ListTodo,
   type LucideIcon,
   Megaphone,
@@ -15,6 +14,7 @@ import {
   Settings,
   ShoppingCart,
   Sparkles,
+  Trash2,
   Truck,
   Warehouse,
 } from "lucide-react";
@@ -90,6 +90,12 @@ export const sidebarItems: NavGroup[] = [
         id: "abcde-curve",
         title: "Curva ABCDE",
         url: "/dashboard/curva-abcde",
+        icon: BarChart3,
+      },
+      {
+        id: "historical-ranking",
+        title: "Histórico x Atual",
+        url: "/dashboard/historico-curvas",
         icon: BarChart3,
       },
       {
