@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 import { ImportAdsCard } from "./_components/import-ads-card";
 import { ImportFullInventoryCard } from "./_components/import-full-inventory-card";
+import { ImportHistoricalRankingCard } from "./_components/import-historical-ranking-card";
 import { ImportInboundsCard } from "./_components/import-inbounds-card";
 import { ImportListingsCard } from "./_components/import-listings-card";
 import { ImportPerformanceCard } from "./_components/import-performance-card";
@@ -30,6 +31,7 @@ export default async function Page() {
         <ImportAdsCard />
         <ImportFullInventoryCard />
         <ImportInboundsCard />
+        <ImportHistoricalRankingCard />
       </div>
     </main>
   );
