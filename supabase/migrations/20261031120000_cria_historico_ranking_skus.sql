@@ -23,3 +23,6 @@ create policy "Current marketplace account only"
   to authenticated
   using (account_id = public.current_marketplace_account_id())
   with check (account_id = public.current_marketplace_account_id());
+
+
+grant select, insert, update, delete on table public.historical_sku_rankings to authenticated;
