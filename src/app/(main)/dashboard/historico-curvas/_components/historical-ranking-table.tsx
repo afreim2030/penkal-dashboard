@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import type { HistoricalRankingDashboardRow } from "../_lib/load-historical-ranking-dashboard";
@@ -13,12 +14,26 @@ const labels: Record<Filter, string> = {
   inativos: "Pausados/excluídos",
 };
 const priorityOrder = { Crítica: 0, Alta: 1, Média: 2, Normal: 3 };
+const curveOrder = { A: 1, B: 2, C: 3, D: 4, E: 5, "Sem vendas": 6 };
+type SortKey = "priority" | "sku" | "product" | "historicalRank" | "historicalCurve" | "historicalUnits" | "currentCurve" | "currentUnits" | "revenue" | "visits" | "full" | "listing" | "situation";
+type SortDirection = "asc" | "desc";
+const headers: Array<{ key: SortKey; label: string }> = [
+  { key: "priority", label: "Prioridade" }, { key: "sku", label: "SKU" }, { key: "product", label: "Produto" },
+  { key: "historicalRank", label: "Rank histórico" }, { key: "historicalCurve", label: "Curva histórica" },
+  { key: "historicalUnits", label: "Unidades históricas" }, { key: "currentCurve", label: "Curva atual" },
+  { key: "currentUnits", label: "Vendas atuais" }, { key: "revenue", label: "Faturamento" },
+  { key: "visits", label: "Visitas" }, { key: "full", label: "FULL" }, { key: "listing", label: "Anúncio" },
+  { key: "situation", label: "Situação" },
+];
+const descendingByDefault = new Set<SortKey>(["historicalUnits", "currentUnits", "revenue", "visits", "full"]);
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 }
 
 export function HistoricalRankingTable({ rows }: { rows: HistoricalRankingDashboardRow[] }) {
   const [filter, setFilter] = useState<Filter>("todos");
+  const [sortKey, setSortKey] = useState<SortKey>("priority");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const visible = useMemo(
     () =>
       rows
@@ -30,12 +45,39 @@ export function HistoricalRankingTable({ rows }: { rows: HistoricalRankingDashbo
             (filter === "sem-full" && row.situation === "Sem estoque FULL") ||
             (filter === "inativos" && ["Anúncio pausado", "Anúncio excluído"].includes(row.situation)),
         )
-        .sort(
-          (left, right) =>
-            priorityOrder[left.priority] - priorityOrder[right.priority] || left.historicalRank - right.historicalRank,
-        ),
-    [filter, rows],
+        .sort((left, right) => {
+          const value = (row: HistoricalRankingDashboardRow): string | number => {
+            switch (sortKey) {
+              case "priority": return priorityOrder[row.priority];
+              case "sku": return row.sku;
+              case "product": return row.productName;
+              case "historicalRank": return row.historicalRank;
+              case "historicalCurve": return curveOrder[row.historicalCurve] ?? 99;
+              case "historicalUnits": return row.historicalUnits;
+              case "currentCurve": return curveOrder[row.currentCurve] ?? 99;
+              case "currentUnits": return row.currentUnits;
+              case "revenue": return row.currentRevenue;
+              case "visits": return row.currentVisits;
+              case "full": return row.fullStock;
+              case "listing": return row.listingStatus;
+              case "situation": return row.situation;
+            }
+          };
+          const leftValue = value(left);
+          const rightValue = value(right);
+          const comparison = typeof leftValue === "string" && typeof rightValue === "string"
+            ? leftValue.localeCompare(rightValue, "pt-BR", { numeric: true })
+            : Number(leftValue) - Number(rightValue);
+          return comparison === 0
+            ? left.historicalRank - right.historicalRank
+            : comparison * (sortDirection === "asc" ? 1 : -1);
+        }),
+    [filter, rows, sortDirection, sortKey],
   );
+  const toggleSort = (key: SortKey) => {
+    if (key === sortKey) setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDirection(descendingByDefault.has(key) ? "desc" : "asc"); }
+  };
   return (
     <section className="rounded-xl border bg-card">
       <div className="flex flex-wrap gap-2 border-b p-3">
@@ -54,23 +96,11 @@ export function HistoricalRankingTable({ rows }: { rows: HistoricalRankingDashbo
         <table className="w-full min-w-[1250px] text-sm">
           <thead className="border-b bg-muted/40 text-left text-muted-foreground">
             <tr>
-              {[
-                "Prioridade",
-                "SKU",
-                "Produto",
-                "Rank histórico",
-                "Curva histórica",
-                "Unidades históricas",
-                "Curva atual",
-                "Vendas atuais",
-                "Faturamento",
-                "Visitas",
-                "FULL",
-                "Anúncio",
-                "Situação",
-              ].map((label) => (
-                <th key={label} className="whitespace-nowrap px-3 py-3 font-medium">
-                  {label}
+              {headers.map(({ key, label }) => (
+                <th key={key} className="whitespace-nowrap px-3 py-3 font-medium">
+                  <button type="button" onClick={() => toggleSort(key)} className="inline-flex items-center gap-1 hover:text-foreground">
+                    {label}{sortKey === key ? sortDirection === "asc" ? <ArrowUp className="size-3" /> : <ArrowDown className="size-3" /> : <ArrowUpDown className="size-3" />}
+                  </button>
                 </th>
               ))}
             </tr>
