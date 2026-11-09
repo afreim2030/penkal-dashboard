@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { resolveAlert } from "../_actions/alert-actions";
 import type { AlertsDashboardData, OperationalAlert, OperationalAlertSeverity } from "../_lib/load-alerts-dashboard";
 
-type AlertTab = "all" | "full" | "ads" | "adsNoImpressions" | "adsLowCtr" | "adsVisitsNoSales" | "noPromotion" | "sales" | "shipping" | "system";
+type AlertTab = "all" | "full" | "ads" | "adsNoImpressions" | "adsLowCtr" | "adsVisitsNoSales" | "adsVisitsNoAds" | "noPromotion" | "sales" | "shipping" | "system";
 
 const tabs: Array<{ id: AlertTab; label: string }> = [
   { id: "all", label: "Todos" },
@@ -21,6 +21,7 @@ const tabs: Array<{ id: AlertTab; label: string }> = [
   { id: "adsNoImpressions", label: "ADS sem impressões" },
   { id: "adsLowCtr", label: "ADS CTR baixo" },
   { id: "adsVisitsNoSales", label: "ADS visitas sem venda" },
+  { id: "adsVisitsNoAds", label: "Visitas sem ADS" },
   { id: "noPromotion", label: "Sem promoção" },
   { id: "sales", label: "Vendas" },
   { id: "shipping", label: "Envios" },
@@ -50,10 +51,12 @@ function belongsToTab(alert: OperationalAlert, tab: AlertTab) {
     && !alert.id.startsWith("listing-no-promotion-")
     && !alert.id.startsWith("ads-no-impressions-")
     && !alert.id.startsWith("ads-low-ctr-")
-    && !alert.id.startsWith("visits-no-sales-");
+    && !alert.id.startsWith("visits-no-sales-")
+    && !alert.id.startsWith("ads-visits-no-ads-");
   if (tab === "adsNoImpressions") return alert.id.startsWith("ads-no-impressions-");
   if (tab === "adsLowCtr") return alert.id.startsWith("ads-low-ctr-");
   if (tab === "adsVisitsNoSales") return alert.id.startsWith("visits-no-sales-");
+  if (tab === "adsVisitsNoAds") return alert.id.startsWith("ads-visits-no-ads-");
   if (tab === "noPromotion") return alert.id.startsWith("listing-no-promotion-");
   if (tab === "shipping") return alert.category === "Envios FULL";
   if (tab === "system") return isSystemAlert(alert);
