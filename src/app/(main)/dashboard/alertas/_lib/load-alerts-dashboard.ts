@@ -11,13 +11,14 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) throw new Error("Usuário não autenticado.");
-  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult, latestAdsImportResult] = await Promise.all([
+  const [products, performance, inbounds, conflictsResult, campaignsResult, listingsResult, latestListingsImportResult, latestAdsImportResult, visitsWithoutAdsResult] = await Promise.all([
     loadProductsDashboard(), loadPerformanceDashboard(), loadFullInboundsDashboard(),
     supabase.from("sales_import_conflicts").select("id, conflict_type, sale_number, sku_raw, mlb_raw, created_at").is("resolved_at", null).order("created_at", { ascending: false }).limit(20),
     supabase.rpc("get_campaign_history_data"),
     supabase.from("listings").select("mlb,title,status,current_price,promotional_price,updated_at").order("updated_at", { ascending: false }),
     supabase.from("imports").select("created_at").eq("import_type", "listings").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("imports").select("id").eq("import_type", "ad_metrics").in("status", ["completed", "completed_with_errors"]).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.rpc("get_listings_with_visits_without_ads"),
   ]);
   const alerts: OperationalAlert[] = [];
   for (const conflict of conflictsResult.data ?? []) alerts.push({ id: `sales-conflict-${conflict.id}`, severity: "critical", category: "Vendas", title: "Conflito de importação de venda", description: [conflict.sale_number ? `Venda ${conflict.sale_number}` : null, conflict.sku_raw ? `SKU ${conflict.sku_raw}` : null, conflict.conflict_type].filter(Boolean).join(" · "), href: "/importar-dados" });
@@ -91,6 +92,14 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   }
   for (const row of (performance?.visitsWithoutSales ?? []).filter((row) => row.visits >= 20)) {
     alerts.push({ id: `visits-no-sales-${row.mlb ?? row.sku ?? "unknown"}`, severity: "warning", category: "Publicidade", title: "Visitas sem vendas", description: `${row.mlb ?? row.sku ?? "Anúncio não vinculado"} · ${row.visits} visitas no período`, value: "0 vendas", href: "/dashboard/performance" });
+  }
+
+  if (visitsWithoutAdsResult.error) throw new Error(`Não foi possível identificar anúncios com visitas sem Ads: ${visitsWithoutAdsResult.error.message}`);
+  for (const row of visitsWithoutAdsResult.data ?? []) {
+    const period = row.period_start && row.period_end
+      ? `${row.period_start.split("-").reverse().join("/")}–${row.period_end.split("-").reverse().join("/")}`
+      : "período atual";
+    alerts.push({ id: `ads-visits-no-ads-${row.mlb ?? "unknown"}`, severity: "info", category: "Publicidade", title: "Anúncio com visitas e sem Ads", description: `${row.mlb ?? "Anúncio sem MLB"} · ${row.title ?? "Sem título"} · ${period}`, value: `${Number(row.visits ?? 0).toLocaleString("pt-BR")} visitas`, href: "/dashboard/performance" });
   }
 
   if (alerts.length > 0) {
