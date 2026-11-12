@@ -54,9 +54,9 @@ export function ProfitResultsTable({ rows }: { rows: ProfitProductRow[] }) {
       if (sort === "revenue") return row.revenue;
       if (sort === "productCosts") return row.productCosts;
       if (sort === "fees") return row.fees;
-      if (sort === "shippingCosts") return row.shippingCosts;
+      if (sort === "shippingCosts") return row.units > 0 ? row.shippingCosts / row.units : 0;
       if (sort === "adjustments") return row.adjustments;
-      if (sort === "couponCosts") return row.couponCosts;
+      if (sort === "couponCosts") return row.units > 0 ? row.couponCosts / row.units : 0;
       if (sort === "adsInvestment") return row.adsInvestment;
       return row.afterAds;
     };
@@ -71,16 +71,16 @@ export function ProfitResultsTable({ rows }: { rows: ProfitProductRow[] }) {
     <Header label="Faturamento" value="revenue" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Custo produto" value="productCosts" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Tarifas" value="fees" current={sort} direction={direction} onSort={changeSort} />
-    <Header label="Fretes" value="shippingCosts" current={sort} direction={direction} onSort={changeSort} />
+    <Header label="Frete/un." value="shippingCosts" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Ajustes" value="adjustments" current={sort} direction={direction} onSort={changeSort} />
-    <Header label="Cupom" value="couponCosts" current={sort} direction={direction} onSort={changeSort} />
+    <Header label="Cupom/un." value="couponCosts" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Ads" value="adsInvestment" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Lucro após Ads" value="afterAds" current={sort} direction={direction} onSort={changeSort} />
     <Header label="Margem" value="margin" current={sort} direction={direction} onSort={changeSort} />
   </TableRow></TableHeader><TableBody>
     {sorted.length === 0 ? <TableRow><TableCell colSpan={12} className="py-8 text-center text-muted-foreground">Não há vendas para este período.</TableCell></TableRow> : sorted.map((row) => {
       const margin = row.revenue > 0 ? row.afterAds / row.revenue : 0;
-      return <TableRow key={row.sku}><TableCell className="font-medium">{row.sku}</TableCell><TableCell className="max-w-80 truncate" title={row.name}>{row.name}</TableCell><TableCell className="text-right tabular-nums">{integer.format(row.units)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.revenue)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.productCosts)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.fees)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.shippingCosts)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.adjustments)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.couponCosts)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.adsInvestment)}</TableCell><TableCell className={row.afterAds < 0 ? "text-right font-semibold tabular-nums text-red-600" : "text-right font-semibold tabular-nums text-emerald-600"}>{money.format(row.afterAds)}</TableCell><TableCell className={margin < 0 ? "text-right font-medium tabular-nums text-red-600" : "text-right font-medium tabular-nums text-emerald-600"}>{percent.format(margin)}</TableCell></TableRow>;
+      return <TableRow key={row.sku}><TableCell className="font-medium">{row.sku}</TableCell><TableCell className="max-w-80 truncate" title={row.name}>{row.name}</TableCell><TableCell className="text-right tabular-nums">{integer.format(row.units)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.revenue)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.productCosts)}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.fees)}</TableCell><TableCell className="text-right tabular-nums">{row.units > 0 ? money.format(row.shippingCosts / row.units) : "—"}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.adjustments)}</TableCell><TableCell className="text-right tabular-nums">{row.units > 0 ? money.format(row.couponCosts / row.units) : "—"}</TableCell><TableCell className="text-right tabular-nums">{money.format(row.adsInvestment)}</TableCell><TableCell className={row.afterAds < 0 ? "text-right font-semibold tabular-nums text-red-600" : "text-right font-semibold tabular-nums text-emerald-600"}>{money.format(row.afterAds)}</TableCell><TableCell className={margin < 0 ? "text-right font-medium tabular-nums text-red-600" : "text-right font-medium tabular-nums text-emerald-600"}>{percent.format(margin)}</TableCell></TableRow>;
     })}
   </TableBody></Table>;
 }
