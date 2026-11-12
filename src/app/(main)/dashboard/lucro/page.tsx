@@ -48,7 +48,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ p
   const before = (previous ?? {}) as typeof metrics;
   const cards = [["Faturamento", metrics.revenue ?? 0, before.revenue ?? 0], ["Margem de contribuição", metrics.contribution ?? 0, before.contribution ?? 0], ["Despesas com publicidade", metrics.adsInvestment ?? 0, before.adsInvestment ?? 0], ["Lucro após Ads", metrics.afterAds ?? 0, before.afterAds ?? 0]] as const;
   const netMargin = (metrics.revenue ?? 0) > 0 ? (metrics.afterAds ?? 0) / (metrics.revenue ?? 0) : null;
-  const productMargins = (byProduct ?? []) as Array<{sku:string;name:string;units:number;revenue:number;productCosts:number;operationalCosts:number;fees:number;shippingCosts:number;adjustments:number;adsInvestment:number;afterAds:number}>;
+  const productMargins = (byProduct ?? []) as Array<{sku:string;name:string;units:number;revenue:number;productCosts:number;operationalCosts:number;fees:number;shippingCosts:number;adjustments:number;couponCosts:number;adsInvestment:number;afterAds:number}>;
   const allProducts = products ?? [];
   const productsWithoutCost = allProducts.filter((product) => (costByProduct.get(product.id) ?? 0) <= 0);
   const displayedCostProducts = costFilter === "missing" ? productsWithoutCost : allProducts;
