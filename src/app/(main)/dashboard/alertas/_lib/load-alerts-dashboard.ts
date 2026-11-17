@@ -42,17 +42,27 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   if (latestAdsRowsResult.error) throw new Error(`Não foi possível carregar o último relatório de publicidade: ${latestAdsRowsResult.error.message}`);
 
   type AdsAlertRow = { mlb: string | null; title: string | null; impressions: number; clicks: number; periodStart: string | null; periodEnd: string | null };
-  const excludedListingMlbs = new Set((listingsResult.data ?? [])
-    .filter((listing) => {
+  const latestAdsMlbs = [...new Set((latestAdsRowsResult.data ?? [])
+    .map((metric) => String(metric.mlb_raw ?? "").trim().toUpperCase())
+    .filter(Boolean))];
+  const excludedListingMlbs = new Set<string>();
+  for (let index = 0; index < latestAdsMlbs.length; index += 100) {
+    const { data: listingStatuses, error: listingStatusesError } = await supabase
+      .from("listings")
+      .select("mlb,status")
+      .in("mlb", latestAdsMlbs.slice(index, index + 100));
+    if (listingStatusesError) throw new Error(`Não foi possível conferir o status dos anúncios de Ads: ${listingStatusesError.message}`);
+    for (const listing of listingStatuses ?? []) {
       const status = String(listing.status ?? "")
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLocaleLowerCase("pt-BR");
-      return status === "excluido" || status === "excluded" || status === "deleted";
-    })
-    .map((listing) => String(listing.mlb ?? "").trim().toUpperCase())
-    .filter(Boolean));
+      if (status === "excluido" || status === "excluded" || status === "deleted") {
+        excludedListingMlbs.add(String(listing.mlb ?? "").trim().toUpperCase());
+      }
+    }
+  }
   const adsByMlb = new Map<string, AdsAlertRow>();
   for (const metric of latestAdsRowsResult.data ?? []) {
     const normalizedMlb = String(metric.mlb_raw ?? "").trim().toUpperCase();
