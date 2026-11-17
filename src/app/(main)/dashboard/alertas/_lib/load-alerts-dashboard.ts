@@ -42,9 +42,22 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   if (latestAdsRowsResult.error) throw new Error(`Não foi possível carregar o último relatório de publicidade: ${latestAdsRowsResult.error.message}`);
 
   type AdsAlertRow = { mlb: string | null; title: string | null; impressions: number; clicks: number; periodStart: string | null; periodEnd: string | null };
+  const excludedListingMlbs = new Set((listingsResult.data ?? [])
+    .filter((listing) => {
+      const status = String(listing.status ?? "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim()
+        .toLocaleLowerCase("pt-BR");
+      return status === "excluido" || status === "excluded" || status === "deleted";
+    })
+    .map((listing) => String(listing.mlb ?? "").trim().toUpperCase())
+    .filter(Boolean));
   const adsByMlb = new Map<string, AdsAlertRow>();
   for (const metric of latestAdsRowsResult.data ?? []) {
-    const key = String(metric.mlb_raw ?? metric.ad_title ?? "").trim();
+    const normalizedMlb = String(metric.mlb_raw ?? "").trim().toUpperCase();
+    if (normalizedMlb && excludedListingMlbs.has(normalizedMlb)) continue;
+    const key = normalizedMlb || String(metric.ad_title ?? "").trim();
     if (!key) continue;
     const current = adsByMlb.get(key);
     if (current) {
