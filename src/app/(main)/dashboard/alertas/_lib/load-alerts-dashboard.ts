@@ -37,7 +37,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   }
   const latestAdsImport = latestAdsImportResult.data;
   const latestAdsRowsResult = latestAdsImport
-    ? await supabase.from("ad_metrics").select("mlb_raw,ad_title,impressions,clicks,period_start,period_end").eq("import_id", latestAdsImport.id)
+    ? await supabase.from("ad_metrics").select("mlb_raw,ad_title,status,impressions,clicks,period_start,period_end").eq("import_id", latestAdsImport.id)
     : { data: [], error: null };
   if (latestAdsRowsResult.error) throw new Error(`Não foi possível carregar o último relatório de publicidade: ${latestAdsRowsResult.error.message}`);
 
@@ -45,7 +45,7 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
   const latestAdsMlbs = [...new Set((latestAdsRowsResult.data ?? [])
     .map((metric) => String(metric.mlb_raw ?? "").trim().toUpperCase())
     .filter(Boolean))];
-  const excludedListingMlbs = new Set<string>();
+  const activeListingMlbs = new Set<string>();
   for (let index = 0; index < latestAdsMlbs.length; index += 100) {
     const { data: listingStatuses, error: listingStatusesError } = await supabase
       .from("listings")
@@ -58,17 +58,22 @@ export async function loadAlertsDashboard(): Promise<AlertsDashboardData> {
         .replace(/[\u0300-\u036f]/g, "")
         .trim()
         .toLocaleLowerCase("pt-BR");
-      if (status === "excluido" || status === "excluded" || status === "deleted") {
-        excludedListingMlbs.add(String(listing.mlb ?? "").trim().toUpperCase());
+      if (status === "ativo" || status === "active") {
+        activeListingMlbs.add(String(listing.mlb ?? "").trim().toUpperCase());
       }
     }
   }
   const adsByMlb = new Map<string, AdsAlertRow>();
   for (const metric of latestAdsRowsResult.data ?? []) {
     const normalizedMlb = String(metric.mlb_raw ?? "").trim().toUpperCase();
-    if (normalizedMlb && excludedListingMlbs.has(normalizedMlb)) continue;
-    const key = normalizedMlb || String(metric.ad_title ?? "").trim();
-    if (!key) continue;
+    const adsStatus = String(metric.status ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLocaleLowerCase("pt-BR");
+    if (!normalizedMlb || !activeListingMlbs.has(normalizedMlb)) continue;
+    if (adsStatus !== "ativo" && adsStatus !== "active") continue;
+    const key = normalizedMlb;
     const current = adsByMlb.get(key);
     if (current) {
       current.impressions += Number(metric.impressions ?? 0);
